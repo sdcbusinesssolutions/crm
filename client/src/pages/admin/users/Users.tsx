@@ -26,7 +26,6 @@ import {
 import Toast from '../../../components/Toast';
 import Modal from '../../../components/Modal';
 import WalletRatesModal from './WalletRatesModal';
-import AdminWalletLedger from './AdminWalletLedger';
 
 const Users = () => {
     const [users, setUsers] = useState<any[]>([]);
@@ -71,7 +70,7 @@ const Users = () => {
     // Wallet State
         const [isWalletRatesOpen, setIsWalletRatesOpen] = useState(false);
     const [isWalletLedgerOpen, setIsWalletLedgerOpen] = useState(false);
-    const [isDomainLedgerOpen, setIsDomainLedgerOpen] = useState(false);
+
     const [selectedWalletUser, setSelectedWalletUser] = useState<any>(null);
 
     // Master Wallet State
@@ -373,8 +372,7 @@ const Users = () => {
             if (!res.ok) throw new Error(data.error || 'Failed to top-up master wallet');
             
             setToast({ type: 'success', title: 'Master Wallet Recharged', message: `Successfully added ₹${masterTopupAmount} to Agency Wallet.` });
-            setIsMasterTopupOpen(false);
-            setMasterTopupAmount('');
+                        setMasterTopupAmount('');
             fetchUsers();
         } catch (error: any) {
             setToast({ type: 'error', title: 'Recharge Failed', message: error.message });
@@ -519,15 +517,13 @@ const Users = () => {
 
         if (action === 'WalletTopup') {
             setSelectedWalletUser(user);
-            setIsWalletTopupOpen(true);
-            return;
+                        return;
         }
 
         if (action === 'MasterTopup') {
             setSelectedWalletUser(user);
             setMasterTopupAmount('');
-            setIsMasterTopupOpen(true);
-            return;
+                        return;
         }
 
         if (action === 'WalletRates') {
@@ -615,12 +611,7 @@ const Users = () => {
                     </div>
                 </div>
                 <div className="flex flex-wrap gap-2 justify-end">
-                    <button
-                        onClick={() => setIsDomainLedgerOpen(true)}
-                        className="flex items-center space-x-2 bg-slate-800 hover:bg-slate-900 text-white px-5 py-2.5 rounded-btn font-bold shadow-md shadow-slate-200 transition-all transform hover:-translate-y-0.5 text-sm"
-                    >
-                        <span>Master Ledger Report 📊</span>
-                    </button>
+
                     <button
                         onClick={() => setIsAddModalOpen(true)}
                         className="flex items-center space-x-2 bg-brand-600 hover:bg-brand-700 text-white px-5 py-2.5 rounded-btn font-bold shadow-md shadow-brand-200 transition-all transform hover:-translate-y-0.5 text-sm"
