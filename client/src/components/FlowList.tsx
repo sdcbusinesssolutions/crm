@@ -4,8 +4,6 @@ import { Flow } from '../types';
 import { usePermissions, ACCESS_TYPES } from '../modules/teamStaff/hooks/usePermissions';
 import { UploadIcon, PlusIcon, CopyIcon, DownloadIcon, TrashIcon, SearchIcon, FilterIcon, EditIcon, TriggerIcon, MenuIcon } from './icons';
 import Modal from './Modal';
-import VideoGuideModal from './VideoGuideModal';
-import VideoGuideButton from './VideoGuideButton';
 
 interface FlowListProps {
     onNavigateToFlow: (flowId: string) => void;
@@ -294,8 +292,7 @@ const FlowList: React.FC<FlowListProps> = ({ onNavigateToFlow, onToggleSidebar }
                         {canWrite && (
                             <>
                                 <input type="file" ref={fileInputRef} className="hidden" accept=".json" onChange={handleFileChange} />
-                                <VideoGuideButton moduleName="Flows" label="VIEW" className="!bg-red-600 hover:!bg-red-700 !text-white !rounded-full !text-[10px] animate-pulse shadow-md hover:shadow-lg mr-2" />
-                                <button onClick={handleImportClick} className="flex-1 sm:flex-none flex items-center justify-center space-x-2 bg-[var(--color-brand)] hover:opacity-90 text-white px-5 py-2.5 rounded-xl shadow-lg shadow-brand-200 transition-all transform hover:-translate-y-0.5 text-sm font-bold active:scale-95">
+                                                                <button onClick={handleImportClick} className="flex-1 sm:flex-none flex items-center justify-center space-x-2 bg-[var(--color-brand)] hover:opacity-90 text-white px-5 py-2.5 rounded-xl shadow-lg shadow-brand-200 transition-all transform hover:-translate-y-0.5 text-sm font-bold active:scale-95">
                                     <UploadIcon /> <span className="hidden sm:inline">Import</span>
                                 </button>
                                 <button onClick={handleCreateFlow} className="flex-1 sm:flex-none flex items-center justify-center space-x-2 bg-[var(--color-brand)] hover:opacity-90 text-white px-5 py-2.5 rounded-xl shadow-lg shadow-brand-200 transition-all transform hover:-translate-y-0.5 text-sm font-bold active:scale-95">

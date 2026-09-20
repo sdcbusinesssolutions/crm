@@ -7,7 +7,6 @@ import CRMPerformanceHub from './CRMPerformanceHub';
 import { QRCodeCanvas } from 'qrcode.react';
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis } from 'recharts';
 import { useDashboardStats, useRevenueStats } from '../hooks/useDashboard';
-import VideoGuideButton from './VideoGuideButton';
 import { monitorApiCall } from '../utils/apiOptimization';
 import { usePermissions, ACCESS_TYPES } from '../modules/teamStaff/hooks/usePermissions';
 

@@ -3,8 +3,6 @@ import { PlusIcon, SearchIcon, EyeIcon, TrashIcon } from '../icons';
 import { supabase } from '../../lib/supabase';
 import PermissionGate from '../../modules/teamStaff/components/PermissionGate';
 import { ACCESS_TYPES } from '../../modules/teamStaff/hooks/usePermissions';
-import VideoGuideButton from '../VideoGuideButton';
-import VideoGuideModal from '../VideoGuideModal';
 
 interface Campaign {
     id: string;
@@ -119,8 +117,7 @@ const CampaignList: React.FC<CampaignListProps> = ({ onCreate, onSelect, onToggl
                     </div>
                     <PermissionGate moduleName="Campaigns" requiredAccess={ACCESS_TYPES.READ_WRITE}>
                         <div className="flex items-center gap-3 w-full sm:w-auto">
-                            <VideoGuideButton moduleName="Campaigns" label="VIEW" className="!bg-red-600 hover:!bg-red-700 !text-white !rounded-full !text-[10px] animate-pulse shadow-md hover:shadow-lg" />
-                            <button
+                                                        <button
                                 onClick={onCreate}
                                 className="px-6 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-[var(--radius-btn)] text-sm font-bold shadow-lg shadow-brand-200 transition-all transform hover:-translate-y-0.5 flex items-center justify-center gap-2 flex-1 sm:flex-none"
                             >

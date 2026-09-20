@@ -5,7 +5,6 @@ import { MODULES, ACCESS_TYPES } from '../constants';
 import { usePermissions } from '../hooks/usePermissions';
 import Modal from '../../../components/Modal';
 import Toast from '../../../components/Toast';
-import VideoGuideButton from '../../../components/VideoGuideButton';
 
 const getAvatarStyle = (name: string) => {
   if (!name) return { outer: 'border-indigo-200/70', inner: 'bg-indigo-600 shadow-indigo-600/30' };
@@ -235,8 +234,7 @@ const StaffManagement: React.FC = () => {
           <div>
             <div className="flex items-center gap-3 mb-2">
               <h1 className="text-3xl font-black text-slate-900 tracking-tight">Team Staff</h1>
-              <VideoGuideButton moduleName="Team Staff" label="VIEW" className="!bg-red-600 hover:!bg-red-700 !text-white !rounded-full !text-[10px] animate-pulse shadow-md hover:shadow-lg mt-1" />
-            </div>
+                          </div>
             <p className="text-slate-500 text-sm font-medium">Manage your team members and their module permissions</p>
           </div>
           <button 

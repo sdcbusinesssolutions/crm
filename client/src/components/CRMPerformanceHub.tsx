@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { MenuItem } from './Sidebar';
 import { DashboardStats } from './Dashboard';
-import VideoGuideButton from './VideoGuideButton';
 
 // --- Icons ---
 const Icons = {
@@ -193,8 +192,7 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                 <h2 className="text-lg font-black tracking-wide uppercase flex items-center gap-2" style={{ color: '#07523d' }}>
                     Lead Pipeline Automation CRM
                 </h2>
-                <VideoGuideButton moduleName="Dashboard" label="VIEW" className="!bg-red-600 hover:!bg-red-700 !text-white !rounded-full !text-[10px] animate-pulse shadow-md hover:shadow-lg" />
-            </div>
+                            </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.4fr_2.2fr] gap-4 h-full">
 

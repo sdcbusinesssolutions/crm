@@ -4,7 +4,6 @@ import GmailCard from './GmailCard';
 import SmtpCard from './SmtpCard';
 import { themeService } from '../../services/themeService';
 import { usePermissions, ACCESS_TYPES } from '../../modules/teamStaff/hooks/usePermissions';
-import VideoGuideButton from '../VideoGuideButton';
 
 interface IntegrationsViewProps {
     onToggleSidebar?: () => void;

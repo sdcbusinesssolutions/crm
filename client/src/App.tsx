@@ -11,8 +11,6 @@ import AdminPlans from './pages/admin/plans/Plans';
 import AdminSubscriptions from './pages/admin/subscriptions/Subscriptions';
 import AdminSettings from './pages/admin/settings/Settings';
 import AdminReferences from './pages/admin/AdminReferences';
-import TenantVideoGuides from './pages/admin/TenantVideoGuides';
-import SuperVideoGuides from './pages/admin/super/SuperVideoGuides';
 import AdminLayout from './layouts/admin/AdminLayout';
 import FeatureLimitsManager from './pages/admin/FeatureLimitsManager';
 import PricingManager from './pages/admin/PricingManager';
@@ -815,10 +813,8 @@ const App: React.FC = () => {
                     <Route path="subscriptions" element={<AdminSubscriptions />} />
                     <Route path="settings" element={<AdminSettings />} />
                     <Route path="references" element={<AdminReferences />} />
-                    <Route path="video-guides" element={<TenantVideoGuides />} />
-                    <Route path="super" element={<SuperDashboard />} />
-                    <Route path="super/video-guides" element={<SuperVideoGuides />} />
-                    <Route path="limits" element={<FeatureLimitsManager />} />
+                                        <Route path="super" element={<SuperDashboard />} />
+                                        <Route path="limits" element={<FeatureLimitsManager />} />
                                         <Route path="pricing" element={<PricingManager />} />
                 </Route>
 

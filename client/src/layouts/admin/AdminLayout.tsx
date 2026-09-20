@@ -129,15 +129,13 @@ const AdminLayout = () => {
         { path: '/admin/plans', label: 'Plans', icon: '📝' },
         { path: '/admin/settings', label: 'Settings', icon: '⚙️' },
         { path: '/admin/references', label: 'References', icon: '🔗' },
-        { path: '/admin/video-guides', label: 'Video Guides', icon: '▶️' },
-    ];
+            ];
 
     if (isAdminSuper) {
         menuItems.push({ path: '/admin/pricing', label: 'Message Price', icon: '💰' });
         menuItems.push({ path: '/admin/super', label: 'Super Panel', icon: '🚀' });
         menuItems.push({ path: '/admin/limits', label: 'Staff Limit', icon: '🚧' });
-        menuItems.push({ path: '/admin/super/video-guides', label: 'Global Videos', icon: '🎥' });
-    }
+            }
 
     return (
         <div className="admin-layout flex h-screen bg-[var(--bg-color)] text-[var(--text-color)] font-sans">
