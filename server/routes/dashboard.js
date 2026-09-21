@@ -435,16 +435,21 @@ router.get('/connections', requireAuth, async (req, res) => {
                 // Reference: https://developers.facebook.com/documentation/business-messaging/whatsapp/messaging-limits
                 const metaUrl = `${GRAPH_API_URL}/${whatsAppId}?fields=quality_rating,whatsapp_business_manager_messaging_limit,status,name_status,display_phone_number`;
 
-                const metaRes = await axios.get(metaUrl, axiosOpts).then(r => r.data).catch(e => {
-                    console.error(`[Dashboard] Meta API failed for ID ${whatsAppId}:`, e.response?.data || e.message);
-                    return null;
+                let metaRes = await axios.get(metaUrl, axiosOpts).then(r => r.data).catch(async e => {
+                    console.warn(`[Dashboard] Meta API failed for ID ${whatsAppId} with new field. Falling back to old field. Error:`, e.response?.data || e.message);
+                    
+                    const fallbackUrl = `https://graph.facebook.com/v21.0/${whatsAppId}?fields=quality_rating,messaging_limit_tier,status,name_status,display_phone_number`;
+                    return await axios.get(fallbackUrl, axiosOpts).then(r => r.data).catch(err => {
+                        console.error(`[Dashboard] Meta API fallback failed for ID ${whatsAppId}:`, err.response?.data || err.message);
+                        return null;
+                    });
                 });
 
                 console.log(`[Dashboard] Meta API response for ${whatsAppId}:`, JSON.stringify(metaRes));
 
                 if (metaRes) {
                     // Use new field; if not present (older token permissions), show UNKNOWN — never hardcode TIER_50
-                    const limitTier = metaRes.whatsapp_business_manager_messaging_limit || 'UNKNOWN';
+                    const limitTier = metaRes.whatsapp_business_manager_messaging_limit || metaRes.messaging_limit_tier || 'UNKNOWN';
                     phoneHealth = {
                         quality_rating:      (metaRes.quality_rating || 'UNKNOWN').toString().toUpperCase(),
                         messaging_limit:     limitTier.toString().toUpperCase(),

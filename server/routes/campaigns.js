@@ -35,10 +35,25 @@ async function getMetaLimits(phoneNumberId, accessToken) {
         // Use v25.0 as shown in Meta's official example.
         const metaUrl = `${GRAPH_API_URL}/${phoneNumberId}?fields=whatsapp_business_manager_messaging_limit`;
         
-        const response = await axios.get(metaUrl, { 
+        let response = await axios.get(metaUrl, { 
             headers: { 'Authorization': `Bearer ${accessToken}` },
             timeout: 10000 
+        }).catch(async e => {
+            console.warn(`[Meta Limits] Fetch failed with new field for ${phoneNumberId}. Falling back to messaging_limit_tier...`);
+            const fallbackUrl = `https://graph.facebook.com/v21.0/${phoneNumberId}?fields=messaging_limit_tier`;
+            return await axios.get(fallbackUrl, {
+                headers: { 'Authorization': `Bearer ${accessToken}` },
+                timeout: 10000 
+            }).catch(err => {
+                console.error(`[Meta Limits] Fallback failed for ${phoneNumberId}:`, err.response?.data || err.message);
+                return null;
+            });
         });
+
+        if (!response) {
+            console.log(`[Meta Limits] Phone ID: ${phoneNumberId}, Failed to fetch limits, defaulting to TIER_250`);
+            return { tier: 'UNKNOWN', limit: 250 };
+        }
 
         const limits = {
             'TIER_50': 50,
@@ -54,7 +69,7 @@ async function getMetaLimits(phoneNumberId, accessToken) {
             'TIER_4': 1000000000
         };
 
-        const tier = response.data.whatsapp_business_manager_messaging_limit || 'TIER_250';
+        const tier = response.data.whatsapp_business_manager_messaging_limit || response.data.messaging_limit_tier || 'TIER_250';
         const limitValue = limits[tier] || 250;
 
         console.log(`[Meta Limits] Phone ID: ${phoneNumberId}, Verified Tier: ${tier}, Limit: ${limitValue}`);
