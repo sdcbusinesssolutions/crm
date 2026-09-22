@@ -242,7 +242,6 @@ const FlowEditor: React.FC<FlowEditorProps> = ({ flowId, onBack }) => {
       case NodeType.TextMessage: baseData.message = ''; break;
       case NodeType.MediaMessage: baseData.label = `Send Media${suffix}`; baseData.mediaType = MediaType.Video; baseData.url = ''; baseData.caption = ''; break;
       case NodeType.Webhook: baseData.eventType = ''; break;
-      case NodeType.SetWebhook: Object.assign(baseData, { label: `Set Webhook${suffix}`, url: 'https://api.example.com/endpoint', method: 'GET', headers: [{ key: '', value: '' }], params: [{ key: '', value: '' }], body: '{}' }); break;
       case NodeType.WriteAttribute: baseData.label = `Write Attribute${suffix}`; baseData.agentId = ''; break;
       case NodeType.Timing: baseData.delaySeconds = 60; break;
       case NodeType.Takeaway: baseData.storeId = ''; break;
@@ -255,7 +254,7 @@ const FlowEditor: React.FC<FlowEditorProps> = ({ flowId, onBack }) => {
       case NodeType.AskAnything: Object.assign(baseData, { label: `Ask Anything${suffix}`, text: 'Write your message here', validateResponse: false, saveResponse: false, ifUnresponsive: false, saveResponseAttribute: 'None', saveResponseNewAttribute: '', unresponsiveTimeout: '10 min' }); break;
       case NodeType.AskInput: Object.assign(baseData, { label: `Ask Input${suffix}`, inputType: 'Text', textInputType: 'Text', text: 'Please enter your input...', retryCount: 3, retryMessage: 'Invalid input, please try again.', timeout: 15, timeoutUnit: 'Minutes', timeoutMessage: 'Session timed out.', ifUnresponsive: true }); break;
       case NodeType.CheckCondition: Object.assign(baseData, { label: `Check Condition${suffix}`, conditions: [{ id: `cg-${Date.now()}`, name: 'Block-1', rules: [{ id: `cr-${Date.now()}`, attribute: 'Name', operator: 'is', value: '' }] }] }); break;
-      case NodeType.Gsheet: baseData.spreadsheetId = ''; baseData.sheetName = ''; baseData.operation = 'append'; break;
+
       case NodeType.Code: baseData.code = '// Your code here'; break;
       case NodeType.CatalogueMessage: baseData.header = ''; baseData.body = ''; baseData.items = []; break;
       case NodeType.Appointment: baseData.calendarId = ''; baseData.durationMinutes = 30; break;
@@ -265,9 +264,6 @@ const FlowEditor: React.FC<FlowEditorProps> = ({ flowId, onBack }) => {
       case NodeType.SendFlow: Object.assign(baseData, { label: `Send Flow${suffix}`, flowId: '', flowName: '', headerText: '', bodyText: 'Please complete this form', footerText: '', ctaText: 'Open Form', validateResponse: false, saveResponse: false, ifUnresponsive: false, saveResponseAttribute: 'None', saveResponseNewAttribute: '', unresponsiveTimeout: '10 min' }); break;
       case NodeType.Switch: Object.assign(baseData, { label: `Switch${suffix}`, cases: [{ id: `case-${Date.now()}-1`, label: 'Case 1', condition: { id: `rule-${Date.now()}`, attribute: '', operator: 'is', value: '' } }] }); break;
       case NodeType.ContactPipeline: Object.assign(baseData, { label: `Update Stage${suffix}`, name: '', email: '', pipelineId: '', stageId: '', outputVariableName: '' }); break;
-      case NodeType.Gmail: baseData.connectionId = ''; baseData.to = ''; baseData.subject = ''; baseData.body = ''; break;
-      case NodeType.Smtp: baseData.connectionId = ''; baseData.to = ''; baseData.subject = ''; baseData.body = ''; break;
-      case NodeType.NewLead: baseData.label = `New Lead${suffix}`; break;
       case NodeType.AssignLead: baseData.label = `Assign Lead${suffix}`; baseData.assignmentMethod = 'round_robin'; baseData.staffIds = []; break;
     }
 

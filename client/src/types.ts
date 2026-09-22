@@ -4,7 +4,6 @@ export enum NodeType {
   TextMessage = 'textMessage',
   MediaMessage = 'mediaMessage',
   Webhook = 'webhook',
-  SetWebhook = 'setWebhook',
   WriteAttribute = 'writeAttribute',
   Timing = 'timing',
   Takeaway = 'takeaway',
@@ -13,7 +12,6 @@ export enum NodeType {
   ListMessage = 'listMessage',
   QuickReplyMessage = 'quickReplyMessage',
   CTAMessage = 'ctaMessage',
-  Gsheet = 'gsheet',
   Code = 'code',
   CatalogueMessage = 'catalogueMessage',
   Appointment = 'appointment',
@@ -31,15 +29,8 @@ export enum NodeType {
   ManageTags = 'manageTags',
   ManageGroups = 'manageGroups',
   AskInput = 'askInput',
-  NewLead = 'newLead',
   ContactPipeline = 'contactPipeline',
-  Gmail = 'gmail',
-  Calendar = 'calendar',
-  PipelineTrigger = 'pipelineTrigger',
-  TaskReminder = 'taskReminder',
-  SheetTrigger = 'sheetTrigger',
   AIAgent = 'aiAgent',
-  Smtp = 'smtp',
   Notify = 'notify',
   AssignLead = 'assignLead',
   CheckForm = 'checkForm',
@@ -49,12 +40,7 @@ export interface CheckFormData extends NodeData {
   formId: string;
 }
 
-export interface SmtpData extends NodeData {
-  connectionId: string;
-  to: string;
-  subject: string;
-  body: string;
-}
+
 
 export interface NodeData {
   label: string;
@@ -77,41 +63,10 @@ export interface AIAgentData extends NodeData {
   assistantId?: string;
 }
 
-export interface SheetTriggerData extends NodeData {
-  credentialId?: string; // connectionId
-  connectionId?: string;
-  spreadsheetId: string;
-  sheetName: string;
-  phoneColumn: string;
-  statusColumn?: string; // Optional: Write back status
-  trigger_condition?: { column: string, operator: string, value: string }[]; // Optional filter
-}
 
-export interface GmailData extends NodeData {
-  connectionId: string;
-  to: string;
-  subject: string;
-  body: string;
-}
 
-export interface CalendarData extends NodeData {
-  connectionId: string;
-  action: 'create_event' | 'check_availability' | 'get_available_slots';
-  summary: string;
-  description: string;
-  startTime: string; // ISO string or variable
-  endTime: string;   // ISO string or variable
-  duration?: number; // Duration length
-  durationUnit?: 'minutes' | 'hours';
-  attendees: string; // Comma separated emails
-  addMeetLink: boolean;
-  // Output variables
-  outputVariableName?: string; // For availability result or slot list
-  // Availability Config
-  workStartHour?: number; // e.g., 9
-  workEndHour?: number;   // e.g., 17
-  daysToCheck?: number;   // e.g., 3
-}
+
+
 
 export interface OnMessageData extends NodeData {
   messageType: 'Text' | 'Image' | 'Audio' | 'Video' | 'Document';
@@ -141,15 +96,6 @@ export interface WebhookData extends NodeData {
   eventType: string;
 }
 
-export interface SetWebhookData extends NodeData {
-  url: string;
-  method: 'GET' | 'POST' | 'PUT' | 'DELETE';
-  headers: { key: string; value: string }[];
-  params: { key: string; value: string }[];
-  body: string;
-  webhookId?: string;
-  outputVariables?: string[];
-}
 
 export interface WriteAttributeData extends NodeData {
   agentId: string;
@@ -256,20 +202,6 @@ export interface CarouselMessageData extends NodeData {
 
 
 
-export interface GsheetData extends NodeData {
-  credentialId?: string;
-  clientId?: string;
-  clientSecret?: string;
-  spreadsheetId: string;
-  sheetName: string;
-  sheetId?: number;
-  operation: 'append' | 'read' | 'update' | 'clear';
-  range?: string;
-  rowData?: Record<string, string>;
-  columns?: string[]; // Cached columns for variable generation
-  lookupColumn?: string; // Add lookupColumn for read/update
-  lookupValue?: string; // Add lookupValue for read/update
-}
 
 export interface CodeData extends NodeData {
   code: string;
@@ -445,7 +377,6 @@ export type AnyNodeData =
   | TextMessageData
   | MediaMessageData
   | WebhookData
-  | SetWebhookData
   | WriteAttributeData
   | TimingData
   | TakeawayData
@@ -455,8 +386,6 @@ export type AnyNodeData =
   | QuickReplyMessageData
   | CTAMessageData
   | CarouselMessageData
-
-  | GsheetData
   | CodeData
   | CatalogueMessageData
   | AppointmentData
@@ -472,16 +401,7 @@ export type AnyNodeData =
   | ManageTagsData
   | ManageGroupsData
   | AskInputData
-  | NewLeadData
-  | NewLeadData
   | ContactPipelineData
-  | ContactPipelineData
-  | PipelineTriggerData
-  | TaskReminderData
-  | SheetTriggerData
-  | GmailData
-  | CalendarData
-  | SmtpData
   | NotifyData
   | AssignLeadData
   | CheckFormData;
@@ -497,17 +417,7 @@ export interface ContactPipelineData extends NodeData {
   status?: string;
 }
 
-export interface PipelineTriggerData extends NodeData {
-  pipelineId: string;
-  stageId: string; // empty means ANY
-}
 
-export interface TaskReminderData extends NodeData {
-  titleFilter?: string;
-  daysBeforeDue?: number;
-  triggerEvent?: 'task_due' | 'task_completed' | 'task_upcoming' | 'task_overdue';
-  timeOffset?: number; // minutes before (upcoming) or after (overdue)
-}
 
 export interface NewLeadData extends NodeData {
   // No specific configuration needed for now, but good to have the type

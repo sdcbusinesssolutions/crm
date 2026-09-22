@@ -48,12 +48,7 @@ class Scheduler {
             flows.forEach(flow => {
                 if (flow.nodes) {
                     flow.nodes.forEach(node => {
-                        if (node.type === 'taskReminder') {
-                            const trigger = node.data.triggerEvent || 'task_due';
-                            const offset = node.data.timeOffset || 60;
-                            if (trigger === 'task_upcoming') upcoming.add(parseInt(offset));
-                            if (trigger === 'task_overdue') overdue.add(parseInt(offset));
-                        }
+                        // taskReminder has been removed
                     });
                 }
             });

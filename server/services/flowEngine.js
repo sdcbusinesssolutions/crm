@@ -12,7 +12,6 @@ const quickReplyMessageExecutor = require('./flow/executors/quickReplyMessage');
 const listMessageExecutor = require('./flow/executors/listMessage');
 const carouselMessageExecutor = require('./flow/executors/carouselMessage');
 const sendFlowExecutor = require('./flow/executors/sendFlow');
-const setWebhookExecutor = require('./flow/executors/setWebhook');
 const callApiExecutor = require('./flow/executors/callApi');
 const templateMessageExecutor = require('./flow/executors/templateMessage');
 const timingExecutor = require('./flow/executors/timing');
@@ -22,10 +21,8 @@ const switchExecutor = require('./flow/executors/switch');
 const manageTagsExecutor = require('./flow/executors/manageTags');
 const manageGroupsExecutor = require('./flow/executors/manageGroups');
 const askInputExecutor = require('./flow/executors/askInput');
-const newLeadExecutor = require('./flow/executors/newLead');
 const contactPipelineExecutor = require('./flow/executors/contactPipeline');
 
-const gmailExecutor = require('./flow/executors/gmail');
 
 
 const notifyExecutor = require('./flow/executors/notify');
@@ -42,7 +39,6 @@ const EXECUTORS = {
     'listMessage': listMessageExecutor,
     'carouselMessage': carouselMessageExecutor,
     'sendFlow': sendFlowExecutor,
-    'setWebhook': setWebhookExecutor,
     'callApi': callApiExecutor,
     'templateMessage': templateMessageExecutor,
     'timing': timingExecutor,
@@ -52,10 +48,7 @@ const EXECUTORS = {
     'manageTags': manageTagsExecutor,
     'manageGroups': manageGroupsExecutor,
     'askInput': askInputExecutor,
-    'newLead': newLeadExecutor,
     'contactPipeline': contactPipelineExecutor,
-
-    'gmail': gmailExecutor,
     'smtp': require('./flow/executors/smtp'),
 
     'notify': notifyExecutor,
@@ -607,18 +600,6 @@ class FlowEngine {
             startNode = flow.nodes.find(n => n.type === 'onMessage');
         }
 
-        // Implicit Start: If still no start node, look for a "New Lead" node
-        if (!startNode) {
-            console.log(`[FlowEngine] No OnMessage node. Checking for 'newLead' node (Implicit Flow)...`);
-            startNode = flow.nodes.find(n => n.type === 'newLead');
-        }
-
-        // Implicit Start: If still no start node, look for a "New Lead" node
-        if (!startNode) {
-            console.log(`[FlowEngine] No OnMessage node. Checking for 'newLead' node (Implicit Flow)...`);
-            startNode = flow.nodes.find(n => n.type === 'newLead');
-        }
-
         if (!startNode) {
             console.error('[FlowEngine] Error: No valid start node found in flow. Explicit ID:', explicitStartNodeId);
             return;
@@ -743,7 +724,7 @@ class FlowEngine {
         } catch (logErr) { console.error('Flow Log Error:', logErr); }
 
         // Execute Start Logic
-        if (['onMessage', 'webhook', 'trigger', 'pipelineTrigger', 'sheetTrigger'].includes(startNode.type)) {
+        if (['onMessage', 'webhook', 'trigger'].includes(startNode.type)) {
             // It is a Trigger Node: The trigger has already "happened".
             // We move immediately to the next steps connected to it.
             await this.executeNextStep(session, flow, startNode.id);
@@ -1082,8 +1063,8 @@ class FlowEngine {
 
             // If absolutely nothing else, take whatever is connected (Legacy behavior)
             // EXCEPTION: Do not do this for logic nodes that have distinct outputs (newLead, condition, etc)
-            // This prevents "Existing Contact" falling back to "New Lead" path if "Existing Contact" is unconnected.
-            if (!edge && node && !['newLead', 'checkCondition', 'checkForm', 'switch', 'askInput'].includes(node.type)) {
+            // EXCEPTION: Do not do this for logic nodes that have distinct outputs (condition, etc)
+            if (!edge && node && !['checkCondition', 'checkForm', 'switch', 'askInput'].includes(node.type)) {
                 edge = flow.edges.find(e => e.source === currentNodeId);
             }
         }

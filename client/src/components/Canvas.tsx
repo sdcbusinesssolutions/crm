@@ -77,15 +77,11 @@ const Canvas: React.FC<CanvasProps> = ({
       case NodeType.AskLocation:
       case NodeType.WriteAttribute:
       case NodeType.ManageTags:
-      case NodeType.NewLead: return { stroke: '#0d9488', animate: '#5eead4', name: 'teal' }; // Teal 600/300
-      case NodeType.Gsheet:
       case NodeType.QuickReplyMessage: return { stroke: '#059669', animate: '#6ee7b7', name: 'emerald' }; // Emerald 600/300
       case NodeType.AIAgent:
       case NodeType.ListMessage: return { stroke: '#7c3aed', animate: '#c4b5fd', name: 'violet' }; // Violet 600/300
       case NodeType.SendFlow:
       case NodeType.CheckCondition:
-      case NodeType.Gmail: return { stroke: '#e11d48', animate: '#fda4af', name: 'rose' }; // Rose 600/300
-      case NodeType.SetWebhook:
       case NodeType.CTAMessage:
       case NodeType.CallApi: return { stroke: '#0891b2', animate: '#67e8f9', name: 'cyan' }; // Cyan 600/300
       case NodeType.AskAnything:
@@ -94,7 +90,6 @@ const Canvas: React.FC<CanvasProps> = ({
       case NodeType.Code:
       case NodeType.TemplateMessage: return { stroke: '#4f46e5', animate: '#a5b4fc', name: 'indigo' }; // Indigo 600/300
       case NodeType.Timing:
-      case NodeType.Smtp: return { stroke: '#475569', animate: '#cbd5e1', name: 'slate' }; // Slate 600/300
       default: return { stroke: '#475569', animate: '#cbd5e1', name: 'slate' };
     }
   };

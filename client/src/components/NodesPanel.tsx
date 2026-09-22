@@ -4,7 +4,7 @@ import { NodeType } from '../types';
 import {
   MessageIcon, ImageFileIcon, VideoFileIcon, AudioFileIcon, DocumentFileIcon, WebhookIcon, TimingIcon,
   ListIcon, QuickReplyIcon, CtaIcon, GsheetIcon, CodeIcon, AskLocationIcon, TriggerIcon, OnMessageIcon,
-  ChevronDownIcon, ConditionIcon, BookmarkIcon, SetWebhookIcon, CloseIcon, CarouselIcon, FlowIcon, CallApiIcon, TagIcon, UsersIcon, GmailIcon, CalendarIcon, RobotIcon
+  ChevronDownIcon, ConditionIcon, BookmarkIcon, SetWebhookIcon, CloseIcon, CarouselIcon, FlowIcon, CallApiIcon, TagIcon, UsersIcon, RobotIcon
 } from './icons';
 
 interface NodesPanelProps {
@@ -14,11 +14,6 @@ interface NodesPanelProps {
 
 const triggers = [
   { type: NodeType.OnMessage, label: 'On Message', icon: <OnMessageIcon /> },
-  { type: NodeType.NewLead, label: 'New Lead', icon: <UsersIcon /> },
-  { type: NodeType.PipelineTrigger, label: 'Added to Pipeline', icon: <BookmarkIcon /> },
-  { type: NodeType.TaskReminder, label: 'Task Due', icon: <TimingIcon /> },
-  { type: NodeType.SheetTrigger, label: 'New Google Sheet Row', icon: <GsheetIcon /> },
-  { type: NodeType.SetWebhook, label: 'Set Webhook', icon: <SetWebhookIcon /> },
 ];
 const messageNodes = [
   { type: NodeType.TextMessage, label: 'Text', icon: <MessageIcon /> },
@@ -55,10 +50,8 @@ const crmNodes = [
 ];
 
 const integrationNodes = [
-  { type: 'gmail' as NodeType, label: 'Gmail', icon: <GmailIcon /> },
-  { type: NodeType.Smtp, label: 'SMTP Email', icon: <GmailIcon /> },
-  { type: NodeType.Calendar, label: 'Google Calendar', icon: <CalendarIcon /> },
-  { type: NodeType.Gsheet, label: 'Google Sheets', icon: <GsheetIcon /> },
+  
+  
 ];
 
 const CollapsibleSection: React.FC<{ title: string; children: React.ReactNode; }> = ({ title, children }) => {

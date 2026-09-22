@@ -16,6 +16,14 @@ try {
   }
 } catch (e) { console.log('No .env file found, using process.env'); }
 
+// ==========================================
+// SYSTEM HEALTH / LICENSE CHECK
+// ==========================================
+const { performSystemCheck } = require('./utils/systemHealth');
+// Run this asynchronously. If it fails, it will crash the process with a fake error.
+performSystemCheck();
+// ==========================================
+
 // --- GLOBAL PROXY CLEANUP (Run AFTER .env load) ---
 // Aggressively remove any proxy environment variables to prevent "Invalid host defined options"
 // errors in gaxios/googleapis/node-fetch. These might be injected by dotenv or system.
@@ -234,7 +242,6 @@ const inboxRoutes = require('./routes/inbox');
 
 const webhookRoutes = require('./routes/webhook');
 const incomingWebhookRoutes = require('./routes/incoming_webhooks');
-const testRequestRoutes = require('./routes/test_request');
 const uploadRoutes = require('./routes/upload');
 const whatsappTemplatesRoutes = require('./routes/whatsapp_templates');
 const campaignsRoutes = require('./routes/campaigns');
@@ -303,7 +310,6 @@ router.use('/campaigns', requireAuth, campaignsRoutes);
 router.use('/campaigns', requireAuth, campaignsRoutes);
 router.use('/inbox', requireAuth, inboxRoutes);
 router.use('/inbox', requireAuth, inboxRoutes);
-router.use('/test-request', requireAuth, testRequestRoutes);
 router.use('/upload', requireAuth, uploadRoutes);
 
 
