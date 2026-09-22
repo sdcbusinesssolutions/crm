@@ -78,13 +78,9 @@ const Canvas: React.FC<CanvasProps> = ({
       case NodeType.WriteAttribute:
       case NodeType.ManageTags:
       case NodeType.QuickReplyMessage: return { stroke: '#059669', animate: '#6ee7b7', name: 'emerald' }; // Emerald 600/300
-      case NodeType.AIAgent:
       case NodeType.ListMessage: return { stroke: '#7c3aed', animate: '#c4b5fd', name: 'violet' }; // Violet 600/300
-      case NodeType.SendFlow:
       case NodeType.CheckCondition:
-      case NodeType.CTAMessage:
-      case NodeType.CallApi: return { stroke: '#0891b2', animate: '#67e8f9', name: 'cyan' }; // Cyan 600/300
-      case NodeType.AskAnything:
+      case NodeType.CTAMessage:      case NodeType.AskAnything:
       case NodeType.Switch:
       case NodeType.AskInput: return { stroke: '#ea580c', animate: '#fdba74', name: 'orange' }; // Orange 600/300
       case NodeType.Code:

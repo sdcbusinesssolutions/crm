@@ -261,7 +261,6 @@ const FlowEditor: React.FC<FlowEditorProps> = ({ flowId, onBack }) => {
       case NodeType.ManageCart: baseData.action = 'ADD'; baseData.productId = ''; baseData.quantity = 1; break;
       case NodeType.Payment: baseData.provider = ''; baseData.amount = 10; baseData.currency = 'USD'; break;
       case NodeType.AskLocation: baseData.text = 'Please share your location.'; break;
-      case NodeType.SendFlow: Object.assign(baseData, { label: `Send Flow${suffix}`, flowId: '', flowName: '', headerText: '', bodyText: 'Please complete this form', footerText: '', ctaText: 'Open Form', validateResponse: false, saveResponse: false, ifUnresponsive: false, saveResponseAttribute: 'None', saveResponseNewAttribute: '', unresponsiveTimeout: '10 min' }); break;
       case NodeType.Switch: Object.assign(baseData, { label: `Switch${suffix}`, cases: [{ id: `case-${Date.now()}-1`, label: 'Case 1', condition: { id: `rule-${Date.now()}`, attribute: '', operator: 'is', value: '' } }] }); break;
       case NodeType.ContactPipeline: Object.assign(baseData, { label: `Update Stage${suffix}`, name: '', email: '', pipelineId: '', stageId: '', outputVariableName: '' }); break;
       case NodeType.AssignLead: baseData.label = `Assign Lead${suffix}`; baseData.assignmentMethod = 'round_robin'; baseData.staffIds = []; break;

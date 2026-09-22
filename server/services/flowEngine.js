@@ -11,8 +11,6 @@ const ctaMessageExecutor = require('./flow/executors/ctaMessage');
 const quickReplyMessageExecutor = require('./flow/executors/quickReplyMessage');
 const listMessageExecutor = require('./flow/executors/listMessage');
 const carouselMessageExecutor = require('./flow/executors/carouselMessage');
-const sendFlowExecutor = require('./flow/executors/sendFlow');
-const callApiExecutor = require('./flow/executors/callApi');
 const templateMessageExecutor = require('./flow/executors/templateMessage');
 const timingExecutor = require('./flow/executors/timing');
 const checkConditionExecutor = require('./flow/executors/checkCondition');
@@ -21,7 +19,6 @@ const switchExecutor = require('./flow/executors/switch');
 const manageTagsExecutor = require('./flow/executors/manageTags');
 const manageGroupsExecutor = require('./flow/executors/manageGroups');
 const askInputExecutor = require('./flow/executors/askInput');
-const contactPipelineExecutor = require('./flow/executors/contactPipeline');
 
 
 
@@ -38,8 +35,6 @@ const EXECUTORS = {
     'quickReplyMessage': quickReplyMessageExecutor,
     'listMessage': listMessageExecutor,
     'carouselMessage': carouselMessageExecutor,
-    'sendFlow': sendFlowExecutor,
-    'callApi': callApiExecutor,
     'templateMessage': templateMessageExecutor,
     'timing': timingExecutor,
     'checkCondition': checkConditionExecutor,
@@ -48,8 +43,6 @@ const EXECUTORS = {
     'manageTags': manageTagsExecutor,
     'manageGroups': manageGroupsExecutor,
     'askInput': askInputExecutor,
-    'contactPipeline': contactPipelineExecutor,
-    'smtp': require('./flow/executors/smtp'),
 
     'notify': notifyExecutor,
     'assignLead': assignLeadExecutor

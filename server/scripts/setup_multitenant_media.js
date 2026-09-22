@@ -99,7 +99,11 @@ async function setupMultitenantMedia() {
             const { data: buckets, error: listError } = await supabase.storage.listBuckets();
 
             if (listError) {
-                console.error(`   ❌ Failed to list buckets: ${listError.message}`);
+                if (listError.message && listError.message.includes('fetch failed')) {
+                    console.log(`   ⚠️ Skipped bucket setup (Supabase unreachable).`);
+                } else {
+                    console.error(`   ❌ Failed to list buckets: ${listError.message}`);
+                }
                 failCount++;
                 continue;
             }
@@ -156,7 +160,9 @@ async function setupMultitenantMedia() {
         console.log(sqlContent);
         console.log('----------------------------------------------------------------');
     } catch (err) {
-        console.error('Failed to read SQL file:', err.message);
+        if (err.code !== 'ENOENT') {
+            console.error('Failed to read SQL file:', err.message);
+        }
     }
 }
 

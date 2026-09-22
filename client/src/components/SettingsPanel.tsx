@@ -3076,19 +3076,14 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ selectedNode, nodes, edge
             case NodeType.CheckForm: return <CheckFormSettings {...commonProps} />;
             case NodeType.Switch: return <SwitchSettingsPanel {...commonProps} />;
             case NodeType.ManageTags: return <ManageTagsSettingsPanel {...commonProps} />;
-            case NodeType.ManageGroups: return <ManageGroupsSettingsPanel {...commonProps} />;
-            case NodeType.SendFlow: return <SendFlowSettingsPanel {...commonProps} />;
-            case NodeType.CallApi: return <CallApiSettingsPanel {...commonProps} />;
-            case NodeType.CarouselMessage: return <CarouselSettingsPanel {...commonProps} />;
+            case NodeType.ManageGroups: return <ManageGroupsSettingsPanel {...commonProps} />;            case NodeType.CarouselMessage: return <CarouselSettingsPanel {...commonProps} />;
             case NodeType.TemplateMessage: return <TemplateMessageSettingsPanel {...commonProps} />;
             case NodeType.ContactPipeline: return <ContactPipelineSettingsPanel {...commonProps} />;
             case NodeType.Timing: return <TimingSettingsPanel {...commonProps} />;
             case NodeType.Webhook: return <WebhookSettingsPanel {...commonProps} />;
             case NodeType.AskLocation: return <AskLocationSettingsPanel {...commonProps} />;
 
-            case NodeType.Code: return <CodeSettingsPanel {...commonProps} />;
-            case NodeType.AIAgent: return <AIAgentSettingsPanel {...commonProps} />;
-            case NodeType.Notify: return <NotifySettingsPanel {...commonProps} />;
+            case NodeType.Code: return <CodeSettingsPanel {...commonProps} />;            case NodeType.Notify: return <NotifySettingsPanel {...commonProps} />;
             case NodeType.AssignLead: return <AssignLeadSettingsPanel {...commonProps} />;
             default: return <TextMessageSettingsPanel {...commonProps} />;
         }

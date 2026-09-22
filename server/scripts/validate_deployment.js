@@ -79,7 +79,11 @@ async function validateSchemaIntegrity() {
         const { data: schema, error } = await fetchDeepSchema(url, data.key);
 
         if (error || !schema) {
-            console.error(`   ❌ Failed to fetch Deep Info from ${url}: ${error || 'Unknown'}`);
+            if (error && error.includes('fetch failed')) {
+                console.log(`   ⚠️ Skipping Deep Info fetch (Supabase unreachable).`);
+            } else {
+                console.error(`   ❌ Failed to fetch Deep Info from ${url}: ${error || 'Unknown'}`);
+            }
             if (error && error.includes('function get_schema_deep_info() does not exist')) {
                 console.error('      💡 ACTION REQUIRED: Run server/sql/get_schema_info.sql on this database!');
             }

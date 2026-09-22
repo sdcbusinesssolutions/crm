@@ -1,7 +1,6 @@
-
 import React, { useState, KeyboardEvent, ReactNode } from 'react';
-import { Node, NodeType, AnyNodeData, OnMessageData, MediaMessageData, ListMessageData, CTAMessageData, QuickReplyMessageData, AskAnythingData, AskInputData, CheckConditionData, WriteAttributeData, MediaType, CallApiData, TemplateMessageData, SwitchData, ManageTagsData, ManageGroupsData, NewLeadData, ContactPipelineData, AIAgentData, NotifyData, CheckFormData } from '../types';
-import { MessageIcon, ImageFileIcon, WebhookIcon, TimingIcon, ListIcon, QuickReplyIcon, CtaIcon, GsheetIcon, CodeIcon, AskLocationIcon, TrashIcon, EditIcon, SettingsIcon, ConditionIcon, BookmarkIcon, SetWebhookIcon, TriggerIcon, CopyIcon, FlowIcon, CallApiIcon, TagIcon, UsersIcon, RobotIcon } from './icons';
+import { Node, NodeType, AnyNodeData, OnMessageData, MediaMessageData, ListMessageData, CTAMessageData, QuickReplyMessageData, AskAnythingData, AskInputData, CheckConditionData, WriteAttributeData, MediaType, TemplateMessageData, SwitchData, ManageTagsData, ManageGroupsData, NewLeadData, ContactPipelineData, NotifyData, CheckFormData } from '../types';
+import { MessageIcon, ImageFileIcon, WebhookIcon, TimingIcon, ListIcon, QuickReplyIcon, CtaIcon, GsheetIcon, CodeIcon, AskLocationIcon, TrashIcon, EditIcon, SettingsIcon, ConditionIcon, BookmarkIcon, SetWebhookIcon, TriggerIcon, CopyIcon, TagIcon, UsersIcon } from './icons';
 
 interface NodeProps { node: Node; isConnecting: boolean; connectingSourceNodeId: string | null; onNodeDragStart: (e: React.MouseEvent, nodeId: string) => void; onNodeTouchStart: (e: React.TouchEvent, nodeId: string) => void; onUpdateNode: (nodeId: string, data: AnyNodeData) => void; onDeleteNode: (nodeId: string) => void; onDuplicateNode: (nodeId: string) => void; onSourceHandleMouseDown: (e: React.MouseEvent, nodeId: string, handleId: string) => void; onSourceHandleTouchStart: (e: React.TouchEvent, nodeId: string, handleId: string) => void; onNodeSettingsClick: (nodeId: string) => void; onNodeClick: (nodeId: string) => void; onNodeMouseUp: (nodeId: string) => void; canWrite?: boolean; }
 interface NodeUIProps<T extends AnyNodeData> { node: Node & { data: T }; onUpdateNode: (nodeId: string, data: T) => void; onDeleteNode: (nodeId: string) => void; onDuplicateNode: (nodeId: string) => void; onSettingsClick: () => void; }
@@ -86,7 +85,7 @@ const MediaMessageNodeUI: React.FC<NodeUIProps<MediaMessageData>> = ({ node, onU
 const GenericNodeUI: React.FC<NodeUIProps<AnyNodeData>> = ({ node, onUpdateNode, onDeleteNode, onDuplicateNode, onSettingsClick }) => {
   const { data, type } = node; const handleDataChange = (key: string, value: any) => onUpdateNode(node.id, { ...data, [key]: value });
   let icon = <SettingsIcon />; let color: NodeColor = 'slate';
-  if (type === NodeType.TextMessage) { icon = <MessageIcon />; color = 'blue'; } else if (type === NodeType.Webhook) { icon = <WebhookIcon />; color = 'amber'; } else if (type === NodeType.Timing) { icon = <TimingIcon />; color = 'slate'; } else if (type === NodeType.AskLocation) { icon = <AskLocationIcon />; color = 'teal'; } else if (type === NodeType.Code) { icon = <CodeIcon />; color = 'indigo'; } else if (type === NodeType.SendFlow) { icon = <FlowIcon />; color = 'rose'; } else if (type === NodeType.AIAgent) { icon = <RobotIcon />; color = 'violet'; }
+  if (type === NodeType.TextMessage) { icon = <MessageIcon />; color = 'blue'; } else if (type === NodeType.Webhook) { icon = <WebhookIcon />; color = 'amber'; } else if (type === NodeType.Timing) { icon = <TimingIcon />; color = 'slate'; } else if (type === NodeType.AskLocation) { icon = <AskLocationIcon />; color = 'teal'; } else if (type === NodeType.Code) { icon = <CodeIcon />; color = 'indigo'; }
   const renderFields = () => {
     switch (type) { case NodeType.TextMessage: return <FieldWrapper label="Message Text"><TextareaInput value={data.message} onChange={val => handleDataChange('message', val)} placeholder="Hello!" /></FieldWrapper>; case NodeType.Webhook: return <FieldWrapper label="Event Type"><TextInput value={data.eventType} onChange={val => handleDataChange('eventType', val)} placeholder="e.g. user_signup" /></FieldWrapper>; case NodeType.Timing: return <div className="text-center text-xs text-slate-400 py-3 bg-slate-950 rounded-lg border border-slate-800">Waits for <span className="font-bold text-white">{data.delayValue ?? 1} {data.delayUnit || 'Minutes'}</span></div>; case NodeType.AskLocation: return <FieldWrapper label="Prompt Text"><TextInput value={data.text} onChange={val => handleDataChange('text', val)} placeholder="Share location..." /></FieldWrapper>; default: return <p className="text-slate-500 text-xs italic p-2 text-center">Configure via Settings</p>; }
   }
@@ -180,28 +179,7 @@ const QuickReplyMessageNodeUI: React.FC<InteractiveNodeUIProps<QuickReplyMessage
   );
 }
 
-const SendFlowNodeUI: React.FC<InteractiveNodeUIProps<AnyNodeData>> = ({ node, onUpdateNode, onDeleteNode, onDuplicateNode, onSettingsClick, onSourceHandleMouseDown, onSourceHandleTouchStart }) => {
-  const { data } = node; const handleDataChange = (key: string, value: any) => onUpdateNode(node.id, { ...data, [key]: value });
-  return (
-    <NodeContainer color="rose" className="group">
-      <NodeHeader color="rose" icon={<FlowIcon />} title={data.label} onTitleSave={(t) => handleDataChange('label', t)} onDelete={() => onDeleteNode(node.id)} onDuplicate={() => onDuplicateNode(node.id)} onSettingsClick={onSettingsClick} />
-      <div className="p-2.5 bg-slate-900/95 flex-1">
-        {data.flowName ? (
-          <div className="bg-slate-950 p-2.5 rounded-lg border border-slate-800 space-y-1">
-            <p className="text-xs font-bold text-slate-300">{data.flowName}</p>
-            <p className="text-[10px] text-slate-500">Flow ID: {data.flowId}</p>
-          </div>
-        ) : (
-          <p className="text-slate-500 text-xs italic p-2 text-center">Select a flow in settings</p>
-        )}
-        <div className="space-y-2 mt-3">
-          {data.ifUnresponsive && (<div className="relative flex items-center justify-between bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-800 group/handle"><span className="text-slate-500 text-[10px] font-bold uppercase tracking-wide">On Timeout</span><div id={`h-${node.id}-unresponsive`} onMouseDown={(e) => onSourceHandleMouseDown(e, node.id, 'unresponsive')} onTouchStart={(e) => onSourceHandleTouchStart(e, node.id, 'unresponsive')} onClick={(e) => e.stopPropagation()} className="w-3 h-3 bg-slate-600 rounded-full cursor-pointer hover:bg-rose-400 hover:scale-125 transition-all touch-none absolute -right-1.5 top-1/2 -translate-y-1/2 ring-2 ring-slate-900" /></div>)}
-          <div className="relative flex items-center justify-between bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-800 group/handle"><span className="text-slate-500 text-[10px] font-bold uppercase tracking-wide">On Complete</span><div id={`h-${node.id}-default`} onMouseDown={(e) => onSourceHandleMouseDown(e, node.id, 'default')} onTouchStart={(e) => onSourceHandleTouchStart(e, node.id, 'default')} onClick={(e) => e.stopPropagation()} className="w-3 h-3 bg-rose-500 rounded-full cursor-pointer hover:scale-125 transition-all shadow-[0_0_8px_rgba(244,63,94,0.6)] touch-none absolute -right-1.5 top-1/2 -translate-y-1/2 ring-2 ring-slate-900" /></div>
-        </div>
-      </div>
-    </NodeContainer>
-  );
-};
+
 
 const CheckFormNodeUI: React.FC<InteractiveNodeUIProps<CheckFormData>> = ({ node, onUpdateNode, onDeleteNode, onDuplicateNode, onSettingsClick, onSourceHandleMouseDown, onSourceHandleTouchStart }) => {
   const { data } = node;
@@ -282,22 +260,7 @@ const AskInputNodeUI: React.FC<InteractiveNodeUIProps<AskInputData>> = ({ node, 
 };
 
 
-const CUSTOM_HANDLE_NODES = [NodeType.ListMessage, NodeType.QuickReplyMessage, NodeType.AskAnything, NodeType.AskInput, NodeType.CheckCondition, NodeType.CheckForm, NodeType.SendFlow, NodeType.Switch, NodeType.TemplateMessage, NodeType.Notify];
-const CallApiNodeUI: React.FC<NodeUIProps<CallApiData>> = ({ node, onUpdateNode, onDeleteNode, onDuplicateNode, onSettingsClick }) => {
-  const { data } = node;
-  const handleDataChange = (key: keyof CallApiData, value: any) => onUpdateNode(node.id, { ...data, [key]: value });
-  return (
-    <NodeContainer color="cyan" className="group">
-      <NodeHeader color="cyan" title={data.label} onTitleSave={(t) => handleDataChange('label', t)} onDelete={() => onDeleteNode(node.id)} onDuplicate={() => onDuplicateNode(node.id)} onSettingsClick={onSettingsClick} icon={<CallApiIcon />} />
-      <div className="p-2.5 bg-slate-900/95 flex-1 space-y-2">
-        <div className="flex items-center space-x-2 bg-slate-950 p-2 rounded border border-slate-800">
-          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${data.method === 'GET' ? 'bg-blue-500/20 text-blue-300 border-blue-500/30' : data.method === 'POST' ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' : 'bg-slate-700 text-slate-300 border-slate-600'}`}>{data.method || 'GET'}</span>
-          <p className="text-xs text-slate-400 truncate flex-1 font-mono">{data.url || 'https://api.example.com'}</p>
-        </div>
-      </div>
-    </NodeContainer>
-  );
-};
+const CUSTOM_HANDLE_NODES = [NodeType.ListMessage, NodeType.QuickReplyMessage, NodeType.AskAnything, NodeType.AskInput, NodeType.CheckCondition, NodeType.CheckForm, NodeType.Switch, NodeType.TemplateMessage, NodeType.Notify];
 
 const TemplateMessageNodeUI: React.FC<InteractiveNodeUIProps<TemplateMessageData>> = ({ node, onUpdateNode, onDeleteNode, onDuplicateNode, onSettingsClick, onSourceHandleMouseDown, onSourceHandleTouchStart }) => {
   const { data } = node;
@@ -561,7 +524,7 @@ const NodeComponent: React.FC<NodeProps> = ({ node, isConnecting, connectingSour
 
   const renderNodeUI = () => {
     const props = { node: node as any, onUpdateNode: onUpdateNode as any, onDeleteNode, onDuplicateNode, onSettingsClick: () => onNodeSettingsClick(node.id), onSourceHandleMouseDown, onSourceHandleTouchStart };
-    switch (node.type) { case NodeType.OnMessage: return <OnMessageNodeUI {...props} />; case NodeType.MediaMessage: return <MediaMessageNodeUI {...props} />; case NodeType.WriteAttribute: return <WriteAttributeNodeUI {...props} />; case NodeType.AskAnything: return <AskAnythingNodeUI {...props} />; case NodeType.AskInput: return <AskInputNodeUI {...props} />; case NodeType.ListMessage: return <ListMessageNodeUI {...props} />; case NodeType.CTAMessage: return <CTAMessageNodeUI {...props} />; case NodeType.QuickReplyMessage: return <QuickReplyMessageNodeUI {...props} />; case NodeType.CheckCondition: return <CheckConditionNodeUI {...props} />; case NodeType.CheckForm: return <CheckFormNodeUI {...props} />; case NodeType.Switch: return <SwitchNodeUI {...props} />; case NodeType.SendFlow: return <SendFlowNodeUI {...props} />; case NodeType.CallApi: return <CallApiNodeUI {...props} />; case NodeType.TemplateMessage: return <TemplateMessageNodeUI {...props} />; case NodeType.ManageTags: return <ManageTagsNodeUI {...props} />; case NodeType.ManageGroups: return <ManageGroupsNodeUI {...props} />;  }
+    switch (node.type) { case NodeType.OnMessage: return <OnMessageNodeUI {...props} />; case NodeType.MediaMessage: return <MediaMessageNodeUI {...props} />; case NodeType.WriteAttribute: return <WriteAttributeNodeUI {...props} />; case NodeType.AskAnything: return <AskAnythingNodeUI {...props} />; case NodeType.AskInput: return <AskInputNodeUI {...props} />; case NodeType.ListMessage: return <ListMessageNodeUI {...props} />; case NodeType.CTAMessage: return <CTAMessageNodeUI {...props} />; case NodeType.QuickReplyMessage: return <QuickReplyMessageNodeUI {...props} />; case NodeType.CheckCondition: return <CheckConditionNodeUI {...props} />; case NodeType.CheckForm: return <CheckFormNodeUI {...props} />; case NodeType.Switch: return <SwitchNodeUI {...props} />; case NodeType.TemplateMessage: return <TemplateMessageNodeUI {...props} />; case NodeType.ManageTags: return <ManageTagsNodeUI {...props} />; case NodeType.ManageGroups: return <ManageGroupsNodeUI {...props} />;  }
   };
 
   const isConnectionSource = connectingSourceNodeId === node.id;

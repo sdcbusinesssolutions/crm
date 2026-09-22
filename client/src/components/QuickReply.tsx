@@ -1,5 +1,5 @@
 import React, { useState, useEffect, ReactNode } from 'react';
-import { QuickReplyIcon, PlusIcon, SearchIcon, TrashIcon, EditIcon, CloseIcon, MessageIcon, ListIcon, CtaIcon, FlowIcon, ImageFileIcon, GmailIcon, MenuIcon } from './icons';
+import { QuickReplyIcon, PlusIcon, SearchIcon, TrashIcon, EditIcon, CloseIcon, MessageIcon, ListIcon, CtaIcon, ImageFileIcon, GmailIcon, MenuIcon } from './icons';
 import { quickReplyService } from '../services/quickReplyService';
 import { Flow, NodeType, MediaType } from '../types';
 import { supabase } from '../lib/supabase';
@@ -139,9 +139,7 @@ const QuickReply: React.FC<QuickReplyProps> = ({ onToggleSidebar }) => {
             case NodeType.MediaMessage: Object.assign(baseData, { mediaType: 'Image', url: '', caption: '' }); break;
             case NodeType.ListMessage: Object.assign(baseData, { header: '', body: '', footer: '', buttonText: 'Menu', sections: [{ id: `sec-${Date.now()}`, title: 'Options', items: [{ id: `item-${Date.now()}`, title: 'Item 1', description: '' }] }] }); break;
             case NodeType.QuickReplyMessage: Object.assign(baseData, { headerType: 'None', body: '', footer: '', buttons: [{ id: `btn-${Date.now()}`, title: 'Button 1' }] }); break;
-            case NodeType.CTAMessage: Object.assign(baseData, { headerType: 'None', body: '', displayText: '', url: '', footer: '' }); break;
-            case NodeType.SendFlow: Object.assign(baseData, { flowId: '', flowName: '', bodyText: 'Click below to start', isForm: false }); break;
-        }
+            case NodeType.CTAMessage: Object.assign(baseData, { headerType: 'None', body: '', displayText: '', url: '', footer: '' }); break;        }
         setTempData(baseData);
         setIsTypeModalOpen(false);
         setIsBuilderOpen(true);
@@ -475,10 +473,7 @@ const QuickReply: React.FC<QuickReplyProps> = ({ onToggleSidebar }) => {
                             <BuilderTextInput value={tempData.footer} onChange={val => handleUpdate({ footer: val })} placeholder="Footer (optional)" maxLength={60} />
                         </BuilderSection>
                     </div>
-                );
-
-            case NodeType.SendFlow:
-                return (
+                );                return (
                     <div className="space-y-6">
                         <BuilderSection title="Select WhatsApp Form">
                             <BuilderSelect 
@@ -523,9 +518,7 @@ const QuickReply: React.FC<QuickReplyProps> = ({ onToggleSidebar }) => {
                                 {selectedType === NodeType.MediaMessage && <ImageFileIcon className="w-5 h-5" />}
                                 {selectedType === NodeType.ListMessage && <ListIcon className="w-5 h-5" />}
                                 {selectedType === NodeType.QuickReplyMessage && <QuickReplyIcon className="w-5 h-5" />}
-                                {selectedType === NodeType.CTAMessage && <CtaIcon className="w-5 h-5" />}
-                                {selectedType === NodeType.SendFlow && <FlowIcon className="w-5 h-5" />}
-                            </div>
+                                {selectedType === NodeType.CTAMessage && <CtaIcon className="w-5 h-5" />}                            </div>
                             <div>
                                 <input 
                                     value={tempData.label} 
@@ -845,9 +838,7 @@ const QuickReply: React.FC<QuickReplyProps> = ({ onToggleSidebar }) => {
                                                                         {type === NodeType.QuickReplyMessage && <QuickReplyIcon className="w-5 h-5" />}
                                                                         {type === NodeType.MediaMessage && <ImageFileIcon className="w-5 h-5" />}
                                                                         {type === NodeType.ListMessage && <ListIcon className="w-5 h-5" />}
-                                                                        {type === NodeType.CTAMessage && <CtaIcon className="w-5 h-5" />}
-                                                                        {type === NodeType.SendFlow && <FlowIcon className="w-5 h-5" />}
-                                                                        {type === NodeType.TextMessage && <MessageIcon className="w-5 h-5" />}
+                                                                        {type === NodeType.CTAMessage && <CtaIcon className="w-5 h-5" />}                                                                        {type === NodeType.TextMessage && <MessageIcon className="w-5 h-5" />}
                                                                     </div>
                                                                     <div className="flex flex-col">
                                                                         <span className="text-sm font-bold text-slate-800">{reply.name}</span>
@@ -984,9 +975,7 @@ const QuickReply: React.FC<QuickReplyProps> = ({ onToggleSidebar }) => {
                         { type: NodeType.ListMessage, label: 'List Message', icon: <ListIcon />, description: 'Menu with up to 10 options' },
                         { type: NodeType.CTAMessage, label: 'CTA Message', icon: <CtaIcon />, description: 'Web site or call button' },
                         { type: NodeType.MediaMessage, label: 'Media', icon: <ImageFileIcon />, description: 'Images, videos or documents' },
-                        { type: NodeType.TextMessage, label: 'Plain Text', icon: <MessageIcon />, description: 'Simple text-only message' },
-                        { type: NodeType.SendFlow, label: 'Send Flow', icon: <FlowIcon />, description: 'Chain another interaction flow' }
-                    ].map((item) => (
+                        { type: NodeType.TextMessage, label: 'Plain Text', icon: <MessageIcon />, description: 'Simple text-only message' },                    ].map((item) => (
                         <button key={item.type} onClick={() => handleTypeSelect(item.type as any)} className="flex items-start gap-4 p-5 rounded-2xl border border-slate-100 bg-white hover:bg-[#F1FDF9] hover:border-[#0D9668] hover:shadow-xl hover:shadow-[#0D9668]/5 transition-all text-left group">
                             <div className="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center text-[#0D9668] shadow-sm shrink-0 border border-emerald-100 group-hover:bg-[#0D9668] group-hover:text-white transition-all">
                                 {React.cloneElement(item.icon as any, { className: 'w-6 h-6' })}
