@@ -181,6 +181,10 @@ for vpsIp in "${SERVER_IPS[@]}"; do
     # Count number of domains in group (number of lines in rows)
     count=$(echo "$rows" | wc -l | xargs)
 
+    firstRow=$(echo "$rows" | head -n 1)
+    IFS=',' read -r _ _ vpsPassword _ <<< "$firstRow"
+    vpsPassword=$(clean_var "$vpsPassword")
+
     log_cyan "SERVER: $vpsIp ($count domains)"
     log_darkgray "Tip: Setup SSH keys to avoid password prompts: ssh-copy-id root@$vpsIp"
 
@@ -207,11 +211,11 @@ for vpsIp in "${SERVER_IPS[@]}"; do
 
     # 1. Create Directory (1st Prompt)
     echo "Initializing Remote Server..."
-    ssh "root@$vpsIp" "mkdir -p $remoteDir"
+    sshpass -p "$vpsPassword" ssh -o StrictHostKeyChecking=no "root@$vpsIp" "mkdir -p $remoteDir"
 
     # 2. Upload Bundle (2nd Prompt)
     echo "Uploading Bundle (Zip, Config, Script)..."
-    scp "$stagingDir/deploy-package.zip" "$stagingDir/domains.csv" "$stagingDir/remote_exec.sh" "root@${vpsIp}:${remoteDir}/"
+    sshpass -p "$vpsPassword" scp -o StrictHostKeyChecking=no "$stagingDir/deploy-package.zip" "$stagingDir/domains.csv" "$stagingDir/remote_exec.sh" "root@${vpsIp}:${remoteDir}/"
 
     # Cleanup local staging
     rm -rf "$stagingDir"
@@ -219,7 +223,7 @@ for vpsIp in "${SERVER_IPS[@]}"; do
 
     # 3. Execute Deployment (3rd Prompt)
     echo "Executing Deployment..."
-    ssh -t "root@$vpsIp" "chmod +x $remoteDir/remote_exec.sh && bash $remoteDir/remote_exec.sh $remoteDir"
+    sshpass -p "$vpsPassword" ssh -o StrictHostKeyChecking=no -t "root@$vpsIp" "chmod +x $remoteDir/remote_exec.sh && bash $remoteDir/remote_exec.sh $remoteDir"
     
     log_green "Done: $vpsIp"
 done
