@@ -83,11 +83,14 @@ export const flowService = {
         })
       });
 
-      if (!response.ok) throw new Error('Failed to save flow');
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to save flow: ${errorText}`);
+      }
       return { success: true };
-    } catch (e) {
+    } catch (e: any) {
       console.error("Failed to save flow", e);
-      return { success: false };
+      throw e;
     }
   },
 
@@ -109,7 +112,11 @@ export const flowService = {
         body: JSON.stringify(newFlowData)
       });
 
-      if (!response.ok) throw new Error('Failed to create flow');
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to create flow: ${errorText}`);
+      }
+      
       const f = await response.json();
 
       return {

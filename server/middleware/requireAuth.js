@@ -131,6 +131,7 @@ const requireAuth = async (req, res, next) => {
             }
 
             if (error || !data || !data.user) {
+                console.error("Supabase getUser error:", error);
                 const isExpired = error?.message?.toLowerCase().includes('expired') || error?.status === 401;
                 return res.status(401).json({
                     error: 'Unauthorized',

@@ -149,8 +149,8 @@ const FlowEditor: React.FC<FlowEditorProps> = ({ flowId, onBack }) => {
           onBackRef.current();
         }
       }
-    } catch (error) {
-      showNotification('Error saving flow.', 'error');
+    } catch (error: any) {
+      showNotification(error.message || 'Error saving flow.', 'error');
       console.error(error);
     } finally {
       setSaving(false);

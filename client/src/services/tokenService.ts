@@ -6,12 +6,14 @@ export const tokenService = {
         accessToken = token;
     },
     getAccessToken: (): string | null => {
-        // 1. Check for staff token first
-        const staffToken = localStorage.getItem('staffToken');
-        if (staffToken) return staffToken;
+        // 1. Check for owner access token (memory) first
+        if (accessToken && accessToken !== 'null' && accessToken !== 'undefined') return accessToken;
         
-        // 2. Fallback to owner access token (memory or Supabase)
-        return accessToken;
+        // 2. Fallback to staff token
+        const staffToken = localStorage.getItem('staffToken');
+        if (staffToken && staffToken !== 'null' && staffToken !== 'undefined') return staffToken;
+        
+        return null;
     },
     getAuthHeader: async () => {
         const token = tokenService.getAccessToken();
