@@ -90,7 +90,6 @@ const NodesPanel: React.FC<NodesPanelProps> = ({ onAddNode, onClose }) => {
         <CollapsibleSection title="Capture Data">{captureNodes.map(t => <NodeItem key={t.type} {...t} onDragStart={() => { }} onAddNode={onAddNode} />)}</CollapsibleSection>
         <CollapsibleSection title="Logic & Tools">{logicNodes.map(t => <NodeItem key={t.type} {...t} onDragStart={() => { }} onAddNode={onAddNode} />)}</CollapsibleSection>
         <CollapsibleSection title="CRM Actions">{crmNodes.map(t => <NodeItem key={t.type} {...t} onDragStart={() => { }} onAddNode={onAddNode} />)}</CollapsibleSection>
-        <CollapsibleSection title="Integrations">{integrationNodes.map(t => <NodeItem key={t.type} {...t} onDragStart={() => { }} onAddNode={onAddNode} />)}</CollapsibleSection>
       </div>
     </aside>
   );
