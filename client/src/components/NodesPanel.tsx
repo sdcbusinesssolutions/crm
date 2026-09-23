@@ -23,7 +23,6 @@ const messageNodes = [
   { type: NodeType.QuickReplyMessage, label: 'Quick Reply', icon: <QuickReplyIcon /> },
   { type: NodeType.CTAMessage, label: 'CTA Button', icon: <CtaIcon /> },
   { type: NodeType.CarouselMessage, label: 'Carousel', icon: <CarouselIcon /> },
-  { type: NodeType.Notify, label: 'Notify', icon: <UsersIcon /> },
 ];
 
 const captureNodes = [
@@ -34,9 +33,7 @@ const captureNodes = [
 
 const logicNodes = [
   { type: NodeType.CheckCondition, label: 'Condition', icon: <ConditionIcon /> },
-  { type: NodeType.CheckForm, label: 'Check Form', icon: <ConditionIcon /> },
   { type: NodeType.Timing, label: 'Delay', icon: <TimingIcon /> },
-
 ];
 
 const crmNodes = [
