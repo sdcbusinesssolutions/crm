@@ -247,7 +247,6 @@ const whatsappTemplatesRoutes = require('./routes/whatsapp_templates');
 const campaignsRoutes = require('./routes/campaigns');
 const dashboardRoutes = require('./routes/dashboard');
 const leadDashboardRoutes = require('./routes/lead_dashboard'); // New optimized route
-const integrationsRoutes = require('./routes/integrations'); // New: Import integrations router
 const clientLogRoutes = require('./routes/client_logs'); // New: Client Logging
 const staffRoutes = require('./modules/teamStaff/routes/staff.routes');
 
@@ -327,10 +326,6 @@ router.use('/admin/subscriptions', adminSubscriptionRoutes);
 router.use('/admin/settings', adminSettingsRoutes);
 router.use('/admin/limits', require('./routes/admin/featureLimitsRoutes'));
 router.use('/admin/custom-menus', adminCustomMenus);
-// EXPERIMENTAL FIX: Mount integrations explicitly to avoid wildcard shadowing
-console.log('✅ Integrations Route Mounted at /api/integrations');
-app.use('/api/integrations', requireAuth, integrationsRoutes);
-
 
 
 app.use('/api/quick-replies', requireAuth, require('./routes/quick_replies'));

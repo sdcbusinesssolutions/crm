@@ -25,7 +25,6 @@ import FormPublicView from './components/FormPublicView';
 import WhatsAppManagement from './components/WhatsAppManagement';
 import AuthBridge from './components/WhatsAppManagement/AuthBridge';
 import { tokenService } from './services/tokenService';
-import IntegrationsView from './components/Integrations/IntegrationsView';
 import CampaignDetails from './components/Campaigns/CampaignDetails';
 import ImpersonationBanner from './components/ImpersonationBanner';
 import MyPlan from './components/MyPlan';
@@ -677,9 +676,7 @@ const MainApp: React.FC = () => {
             return <TemplateList onNavigateToBuilder={handleNavigateToTemplateBuilder} />;
         }
 
-        if (activeMenuItem === 'Integrations') {
-            return <IntegrationsView onToggleSidebar={() => setSidebarOpen(true)} onNavigate={handleMenuNavigation} />;
-        }
+
 
 
 
