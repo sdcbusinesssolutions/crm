@@ -13,20 +13,17 @@ services:
     restart: always
     user: root
     
-    # 🔄 SCALABILITY CONFIGURATION (Docker Swarm Compatible)
-    # 🔄 HIGH PERFORMANCE SCALING (For 32GB RAM / 8 Cores)
-    # 🔄 SCALABILITY CONFIGURATION (Dynamic for Bulk Deployment)
-    deploy:
+     deploy:
       mode: replicated
-      replicas: 6 # High Performance: 6 Replicas for scalable capacity
+      replicas: 1 
       endpoint_mode: vip
       resources:
         limits:
-          cpus: '0.8'    # Leave 20% of core for OS/Traefik
-          memory: 2500M  # ~2.5GB RAM limit per container
+          cpus: '0.8'    
+          memory: 2500M 
         reservations:
-          cpus: '0.2'    # Minimum core reserved
-          memory: 1G     # 1GB RAM reserved
+          cpus: '0.2'    
+          memory: 1G    
       restart_policy:
         condition: on-failure
         delay: 5s
@@ -36,15 +33,7 @@ services:
         parallelism: 1
         delay: 10s
         order: start-first
-    # NOTE: Native Docker Compose cannot Auto-Scale based on CPU %.
-    # You must use Docker Swarm with a service like 'orbiter' or Kubernetes HPA.
-    
-    # Set container name to domain for easy identification
-    # container_name: ${DOMAIN} # DISABLED: Must be removed when using replicas > 1 
-
-    # env_file:
-    #   - ./server/.env
-    
+      
     environment:
       - TZ=Asia/Kolkata
       - SUPABASE_URL=${SUPABASE_URL}
@@ -60,33 +49,24 @@ services:
       - VITE_BRIDGE_DOMAIN=${BRIDGE_DOMAIN}
       - VITE_MASTER_URL=${VITE_MASTER_URL}
       - REDIS_URL=redis://redis:6379
-      # Drip Campaign Workers Configuration
       - DRIP_WORKER_COUNT=${DRIP_WORKER_COUNT:-1}
-      # MEMORY OPTIMIZATION: Maximize usage of 2.5GB container limit
       - NODE_OPTIONS=--max-old-space-size=2048 --max-semi-space-size=64 --expose-gc
-      # CRITICAL NETWORK FIX: Force IPv4 DNS resolution inside Docker.
-      # Meta's CDN (lookaside.fbsbx.com) causes ECONNRESET when Docker uses IPv6.
-      # This is the OS-level fix; code-level fix is family:4 in https.Agent.
       - NODE_DNS_ORDER=ipv4first
-      # TUNE GC & FILE I/O: Prevent blocking the event loop on multi-tenant traffic
       - UV_THREADPOOL_SIZE=16
     
     volumes:
       - ./server_logs/${DOMAIN}:/app/logs
       - ./server_uploads/${DOMAIN}:/app/uploads
-      # tmpfs: RAM-backed temp storage for faster processing
       - type: tmpfs
         target: /tmp
         tmpfs:
           size: 134217728   # 128MB
     
-    # CRITICAL: Prevent "Too many open files" errors causing ECONNRESET
     ulimits:
       nofile:
         soft: 65536
         hard: 65536
 
-    # HEALTHCHECK: Traefik will skip any frozen container automatically
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
       interval: 30s
@@ -120,11 +100,11 @@ services:
       replicas: 1
       resources:
         limits:
-          cpus: '0.8'      # Max 80% of a single CPU core
-          memory: 1000M    # Max 1GB RAM
+          cpus: '0.8'      
+          memory: 1000M    
         reservations:
-          cpus: '0.1'      # Reserve 10% of a CPU core
-          memory: 200M     # Reserve 200MB RAM
+          cpus: '0.1'      
+          memory: 200M     
     networks:
       - internal_network
 
