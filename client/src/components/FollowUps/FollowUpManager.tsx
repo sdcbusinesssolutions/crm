@@ -411,15 +411,6 @@ const FollowUpManager: React.FC<FollowUpManagerProps> = ({ onNavigate, initialVi
                         Export
                     </button>
 
-                    {canWrite && (
-                        <button
-                            onClick={() => { setEditingFollowUp(null); setView('form'); }}
-                            className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 shadow-md transition font-bold flex items-center gap-2"
-                        >
-                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-                            Create Follow-up
-                        </button>
-                    )}
                 </div>
             </div>
 

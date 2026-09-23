@@ -137,9 +137,9 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
         return () => clearInterval(interval);
     }, []);
 
-    const manageSubItems: MenuItem[] = ['Whatsapp Templates', 'Whatsapp Forms'];
+    const manageSubItems: MenuItem[] = ['Whatsapp Templates'];
     const settingsSubItems: MenuItem[] = ['Branding & Appearance', 'WhatsApp API', 'WhatsApp Management', 'My Plan'];
-    const contactSubItems: MenuItem[] = ['Overview', 'Contact List', 'Contact Groups', 'Pipelines', 'Follow-up', 'Form Builder', 'Tags', 'Input Fields', 'Form Contact'];
+    const contactSubItems: MenuItem[] = ['Overview', 'Contact List', 'Contact Groups', 'Pipelines', 'Follow-up', 'Form Builder', 'Tags', 'Input Fields'];
 
     useEffect(() => {
         // if (manageSubItems.includes(activeItem)) setIsManageOpen(true);

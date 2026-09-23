@@ -936,7 +936,7 @@ const TemplateBuilder: React.FC<TemplateBuilderProps> = ({ templateId, onBack })
                         <div className="space-y-2">
                             <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Buttons & Actions</label>
                             <div className="grid grid-cols-3 gap-3">
-                                {actionTypes.map((at) => {
+                                {actionTypes.filter(at => at.id !== 'FORM').map((at) => {
                                     const isCarousel = ['MEDIA_CARD_CAROUSEL', 'PRODUCT_CARD_CAROUSEL'].includes(at.id);
                                     const isDisabled = isCarousel && type !== 'TEXT';
 
