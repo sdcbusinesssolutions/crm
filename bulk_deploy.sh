@@ -46,7 +46,7 @@ fi
 
 export IMAGE_TAG="latest"
 echo "🏗️  Building Shared Docker Image (whatsapp-app:$IMAGE_TAG)..."
-docker build -t "whatsapp-app:$IMAGE_TAG" .
+docker build -q -t "whatsapp-app:$IMAGE_TAG" . > /dev/null 2>&1
 
 # ==================================================================================
 # 2. GROUP DOMAINS BY SUPABASE PROJECT (same sbUrl = same database = single container)
@@ -71,7 +71,7 @@ declare -A GROUP_ORDER           # to preserve insertion order
 declare -A GROUP_IS_DEV          # whether this group is a development environment
 GROUP_COUNT=0
 
-echo "📋 Reading and grouping domains from '$CSV_FILE'..."
+# Reading and grouping domains
     # Process each line, ensuring we handle files without a trailing newline
     while IFS=, read -r domain vpsIp vpsPassword deployEnabled traefikNetwork sbUrl sbKey sbServiceKey certResolver dbConnection masterDomain runLocal trialDays deleteWindowDays development || [[ -n "$domain" ]]; do
 
@@ -144,8 +144,7 @@ echo "📋 Reading and grouping domains from '$CSV_FILE'..."
 
 done < <(tail -n +2 "$CSV_FILE")
 
-echo "📦 Found $GROUP_COUNT deployment group(s)."
-echo "======================================================"
+# Process deployment groups
 
 # ==================================================================================
 # 3. DEPLOY ONE CONTAINER PER GROUP
@@ -190,16 +189,20 @@ for (( i=0; i<GROUP_COUNT; i++ )); do
     safeName=${primaryDomain//./_}
     isDev="${GROUP_IS_DEV[$groupKey]}"
 
-    # Development environments get 'dev-' prefix to avoid conflicts with production
-    if [[ "$isDev" == "true" ]]; then
-        projectParam="dev-$safeName"
-        echo "   🧪 MODE: DEVELOPMENT (container prefix: dev-)"
-    else
-        projectParam="$safeName"
-    fi
+    # IMPORTANT: The project name is now tied to the Database ID (groupKey).
+    # This guarantees that if the user runs a new domain on the SAME database,
+    # docker-compose will replace the old container instead of creating a duplicate!
+    projectParam="$groupKey"
     appUrl="https://$primaryDomain"
     bridgeDomain="$appUrl"
     envFileName=".env.$safeName"
+
+    # PROTECT EXISTING CONTAINERS:
+    # If a container for this Database ID is already running, skip deployment!
+    existing_container=$(docker ps -q --filter "label=com.docker.compose.project=$projectParam")
+    if [ ! -z "$existing_container" ]; then
+        continue
+    fi
 
     echo ""
     echo "🚀 Deploying single container for group: [$groupKey]"
@@ -244,7 +247,10 @@ EOF
     cat "$envFileName"
     echo "   ---------------------------------"
 
-    # Remove old container named after primary domain (cleanup)
+    # IMPORTANT CLEANUP: Remove any old containers that were created using the OLD domain-based naming scheme.
+    # This ensures that when we switch to DB-based naming, the old domain-based containers don't stay running.
+    $DOCKER_COMPOSE_CMD -p "$safeName" down --remove-orphans 2>/dev/null || true
+    $DOCKER_COMPOSE_CMD -p "dev-$safeName" down --remove-orphans 2>/dev/null || true
     docker rm -f "$primaryDomain" 2>/dev/null || true
 
     # Copy to .env and deploy
@@ -298,22 +304,7 @@ done
 # ==================================================================================
 # 4. Cleanup OLD per-domain images (Migration Cleanup)
 # ==================================================================================
-echo "🧹 Cleaning up OLD per-domain images (whatsapp-app:prod-*)..."
 docker images "whatsapp-app" --format "{{.Repository}}:{{.Tag}}" | grep "prod-" | xargs -r docker rmi -f
 
-# Prune dangling images
-docker image prune -f
-
-# ==================================================================================
-# 5. Start Global Services (Backup)
-# ==================================================================================
-echo "💾 Starting Database Backup System..."
-if [ -f "docker-compose-backup.yml" ]; then
-    $DOCKER_COMPOSE_CMD -f docker-compose-backup.yml up -d --build --remove-orphans
-    echo "   ✅ Backup Service Running (Check with 'docker logs database_backup_worker')"
-else
-    echo "   ⚠️  docker-compose-backup.yml not found. Backup system skipped."
-fi
-
-echo ""
-echo "🎉 Bulk Deployment Finished! ($GROUP_COUNT group(s) deployed)"
+# Prune dangling images silently
+docker image prune -f > /dev/null 2>&1

@@ -112,19 +112,11 @@ HEADER=$(head -n 1 "$CSV_FILE" | tr -d '\r')
 declare -A SERVER_ROWS
 declare -a SERVER_IPS
 
-# Flag to enforce single domain deployment
-FIRST_RECORD_PROCESSED=false
-
 # Parse the CSV file and group domains by VPSIp
 while IFS= read -r line || [[ -n "$line" ]]; do
     # Skip empty lines or header
     if [ -z "$line" ] || [[ "$line" =~ ^Domain, ]]; then
         continue
-    fi
-
-    if [ "$FIRST_RECORD_PROCESSED" = true ]; then
-        log_yellow "WARNING: Single-domain mode enforced. Ignoring remaining entries in CSV."
-        break
     fi
 
     # Extract columns from line
@@ -151,7 +143,6 @@ while IFS= read -r line || [[ -n "$line" ]]; do
             SERVER_ROWS[$vpsIp]="${SERVER_ROWS[$vpsIp]}
 $line"
         fi
-        FIRST_RECORD_PROCESSED=true
     fi
 done < "$CSV_FILE"
 
@@ -212,6 +203,9 @@ for vpsIp in "${SERVER_IPS[@]}"; do
     
     log_green "Done: $vpsIp"
 done
+
+# Clean up local zip file to save space
+rm -f deploy-package.zip
 
 echo ""
 log_cyan "Finished!"

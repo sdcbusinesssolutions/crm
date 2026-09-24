@@ -126,6 +126,9 @@ foreach ($group in $grouped) {
     Write-Host "Done: $vpsIp" -ForegroundColor Green
 }
 
+# Clean up local zip file to save space
+if (Test-Path "deploy-package.zip") { Remove-Item "deploy-package.zip" -Force }
+
 Write-Host ""
 Write-Host "Finished!" -ForegroundColor Cyan
 Stop-Transcript

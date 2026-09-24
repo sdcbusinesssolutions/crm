@@ -20,7 +20,7 @@ fi
 
 # 2. Unzip Package (contains generic domains.csv)
 # We do this BEFORE processing the uploaded specific CSV so we can overwrite the generic one
-unzip -o deploy-package.zip
+unzip -q -o deploy-package.zip
 
 # 3. Handle CSV file (Existing specific CSV should overwrite the one from the zip)
 if ls domains_temp_*.csv 1> /dev/null 2>&1; then
@@ -31,3 +31,6 @@ fi
 dos2unix bulk_deploy.sh 2>/dev/null || sed -i 's/\r$//' bulk_deploy.sh
 chmod +x bulk_deploy.sh
 ./bulk_deploy.sh
+
+# 4. Clean up the zip file from server to save space
+rm -f deploy-package.zip
