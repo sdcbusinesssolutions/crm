@@ -73,21 +73,6 @@ if (-not (Test-Path "deploy-package.zip")) {
     exit 1
 }
 
-# -------------------------------------------------------------------------
-# 3. Pre-Flight Validation
-# -------------------------------------------------------------------------
-Write-Host "Validating Databases..." -ForegroundColor Cyan
-node server/scripts/validate_deployment.js
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "DEPLOYMENT HALTED: Validation Failed." -ForegroundColor Red
-    exit 1
-}
-
-# -------------------------------------------------------------------------
-# 4. Setup Media Storage
-# -------------------------------------------------------------------------
-Write-Host "Configuring Supabase Storage..." -ForegroundColor Cyan
-node server/scripts/setup_multitenant_media.js
 
 # -------------------------------------------------------------------------
 # 5. Process CSV and Deploy

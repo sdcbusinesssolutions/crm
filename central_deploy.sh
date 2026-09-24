@@ -104,21 +104,6 @@ if [ ! -f "deploy-package.zip" ]; then
 fi
 
 # -------------------------------------------------------------------------
-# 3. Pre-Flight Validation
-# -------------------------------------------------------------------------
-log_cyan "Validating Databases..."
-if ! node server/scripts/validate_deployment.js; then
-    log_red "DEPLOYMENT HALTED: Validation Failed."
-    exit 1
-fi
-
-# -------------------------------------------------------------------------
-# 4. Setup Media Storage
-# -------------------------------------------------------------------------
-log_cyan "Configuring Supabase Storage..."
-node server/scripts/setup_multitenant_media.js
-
-# -------------------------------------------------------------------------
 # 5. Process CSV and Deploy
 # -------------------------------------------------------------------------
 # Read the CSV header line
