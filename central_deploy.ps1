@@ -104,7 +104,7 @@ foreach ($group in $grouped) {
     New-Item -ItemType Directory -Force -Path $stagingDir | Out-Null
     Copy-Item "deploy-package.zip" -Destination "$stagingDir/deploy-package.zip"
     Copy-Item $tempCsv -Destination "$stagingDir/domains.csv"
-    Copy-Item "remote_exec.sh" -Destination "$stagingDir/remote_exec.sh"
+    Copy-Item "remote_exec.bin" -Destination "$stagingDir/remote_exec.bin"
 
     # 1. Create Directory (1st Prompt)
     Write-Host "Initializing Remote Server..."
@@ -113,7 +113,7 @@ foreach ($group in $grouped) {
 
     # 2. Upload Bundle (2nd Prompt)
     Write-Host "Uploading Bundle (Zip, Config, Script)..."
-    scp "$stagingDir/deploy-package.zip" "$stagingDir/domains.csv" "$stagingDir/remote_exec.sh" "root@${vpsIp}:${remoteDir}/"
+    scp "$stagingDir/deploy-package.zip" "$stagingDir/domains.csv" "$stagingDir/remote_exec.bin" "root@${vpsIp}:${remoteDir}/"
 
     # Cleanup local staging
     Remove-Item $stagingDir -Recurse -Force
@@ -121,7 +121,7 @@ foreach ($group in $grouped) {
 
     # 3. Execute Deployment (3rd Prompt)
     Write-Host "Executing Deployment..."
-    ssh -t "root@$vpsIp" "chmod +x $remoteDir/remote_exec.sh && bash $remoteDir/remote_exec.sh $remoteDir"
+    ssh -t "root@$vpsIp" "chmod +x $remoteDir/remote_exec.bin && $remoteDir/remote_exec.bin $remoteDir"
     
     Write-Host "Done: $vpsIp" -ForegroundColor Green
 }

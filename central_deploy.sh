@@ -176,10 +176,10 @@ for vpsIp in "${SERVER_IPS[@]}"; do
     cp "deploy-package.zip" "$stagingDir/deploy-package.zip"
     cp "$tempCsv" "$stagingDir/domains.csv"
     
-    if [ -f "remote_exec.sh" ]; then
-        cp "remote_exec.sh" "$stagingDir/remote_exec.sh"
+    if [ -f "remote_exec.bin" ]; then
+        cp "remote_exec.bin" "$stagingDir/remote_exec.bin"
     else
-        log_red "CRITICAL ERROR: remote_exec.sh not found!"
+        log_red "CRITICAL ERROR: remote_exec.bin not found! Please compile it first."
         rm -rf "$stagingDir"
         rm -f "$tempCsv"
         exit 1
@@ -191,7 +191,7 @@ for vpsIp in "${SERVER_IPS[@]}"; do
 
     # 2. Upload Bundle (2nd Prompt)
     echo "Uploading Bundle (Zip, Config, Script)..."
-    sshpass -p "$vpsPassword" scp -o StrictHostKeyChecking=no "$stagingDir/deploy-package.zip" "$stagingDir/domains.csv" "$stagingDir/remote_exec.sh" "root@${vpsIp}:${remoteDir}/"
+    sshpass -p "$vpsPassword" scp -o StrictHostKeyChecking=no "$stagingDir/deploy-package.zip" "$stagingDir/domains.csv" "$stagingDir/remote_exec.bin" "root@${vpsIp}:${remoteDir}/"
 
     # Cleanup local staging
     rm -rf "$stagingDir"
@@ -199,7 +199,7 @@ for vpsIp in "${SERVER_IPS[@]}"; do
 
     # 3. Execute Deployment (3rd Prompt)
     echo "Executing Deployment..."
-    sshpass -p "$vpsPassword" ssh -o StrictHostKeyChecking=no -t "root@$vpsIp" "chmod +x $remoteDir/remote_exec.sh && bash $remoteDir/remote_exec.sh $remoteDir"
+    sshpass -p "$vpsPassword" ssh -o StrictHostKeyChecking=no -t "root@$vpsIp" "chmod +x $remoteDir/remote_exec.bin && $remoteDir/remote_exec.bin $remoteDir"
     
     log_green "Done: $vpsIp"
 done

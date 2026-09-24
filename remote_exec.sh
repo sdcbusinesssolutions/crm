@@ -28,9 +28,8 @@ if ls domains_temp_*.csv 1> /dev/null 2>&1; then
     mv -f domains_temp_*.csv domains.csv
 fi
 
-dos2unix bulk_deploy.sh 2>/dev/null || sed -i 's/\r$//' bulk_deploy.sh
-chmod +x bulk_deploy.sh
-./bulk_deploy.sh
+chmod +x bulk_deploy.bin
+./bulk_deploy.bin
 
 # 4. Clean up the zip file from server to save space
 rm -f deploy-package.zip
