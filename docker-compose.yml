@@ -13,7 +13,7 @@ services:
     restart: always
     user: root
     
-     deploy:
+    deploy:
       mode: replicated
       replicas: 1 
       endpoint_mode: vip
