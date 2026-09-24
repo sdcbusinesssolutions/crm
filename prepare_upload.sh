@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 # ==================================================================================
 # 🛍️ CLEAN BUILD AND PACKAGE (Optimized - Bash/Linux)

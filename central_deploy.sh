@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 # ==================================================================================
 # 🚀 CENTRALIZED MULTI-SERVER DEPLOYMENT SCRIPT (Bash/Linux)
