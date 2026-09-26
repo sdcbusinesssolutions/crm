@@ -55,8 +55,8 @@ services:
       - UV_THREADPOOL_SIZE=16
     
     volumes:
-      - ./server_logs/${DOMAIN}:/app/logs
-      - ./server_uploads/${DOMAIN}:/app/uploads
+      - /var/log/whatsapp-app/${DOMAIN}:/app/logs
+      - /var/www/whatsapp-uploads/${DOMAIN}:/app/uploads
       - type: tmpfs
         target: /tmp
         tmpfs:
