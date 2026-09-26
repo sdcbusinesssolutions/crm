@@ -17,14 +17,10 @@ const whatsappService = require('../services/whatsappService');
 
 // --- Configuration ---
 const GRAPH_API_URL = 'https://graph.facebook.com/v18.0';
-const DEFAULT_BATCH_SIZE = 50; // Max items to fetch per tick
-const MAX_CONCURRENCY = 5; // Max parallel requests (reduced to prevent Meta rate limit 80008)
-const MAX_RETRIES = 3; // Max retry attempts for transient errors
-const RATE_LIMIT_DELAY_MS = 1000; // 1000ms between chunks = ~1 msg/sec (extremely safe for Meta's limits & allows webhook interception)
-
-// --- Template Cache (prevents repeated Meta API calls for same template) ---
-// Key: `${wabaId}:${templateName}`, Value: { def, expiresAt }
-const TEMPLATE_CACHE = new Map();
+const DEFAULT_BATCH_SIZE = 50;
+const MAX_CONCURRENCY = 5;
+const MAX_RETRIES = 3;
+const RATE_LIMIT_DELAY_MS = 1000; const TEMPLATE_CACHE = new Map();
 const TEMPLATE_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 // --- Healed Media Cache (Optimization for Campaigns) ---
@@ -32,24 +28,7 @@ const TEMPLATE_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 // Prevents re-transcoding same video for every recipient in a batch
 const HEALED_MEDIA_CACHE = new Map();
 
-// --- Rate Limit State (per-WABA, SHARED ACROSS ALL CONTAINERS via Supabase DB) ---
-// 
-// ⚠️ PROBLEM with in-memory Map: Each Docker container has its OWN RATE_LIMIT_MAP.
-// If WABA X is rate-limited on Container 1, Containers 2-6 don't know — they keep
-// hammering Meta, making the penalty WORSE (Meta increases ban duration for continued requests!).
-//
-// ✅ SOLUTION: Use Supabase `campaign_rate_limits` table as shared state.
-//    - Local in-memory cache for fast-path (avoids DB query every 2 seconds)
-//    - DB is source of truth, synced when cache expires or on rate-limit event
-//
-// DB Table Required (run once in Supabase SQL Editor):
-// CREATE TABLE IF NOT EXISTS campaign_rate_limits (
-//     waba_id TEXT PRIMARY KEY,
-//     paused_until TIMESTAMPTZ NOT NULL,
-//     updated_at TIMESTAMPTZ DEFAULT NOW()
-// );
-
-const RATE_LIMIT_DEFAULT_PAUSE_MS = 60 * 1000; // 60s fallback if header not available
+const RATE_LIMIT_DEFAULT_PAUSE_MS = 60 * 1000;
 
 // Local fast-path cache: { wabaId -> pausedUntilMs }
 // Only used to avoid hitting DB on every 2-second tick
@@ -294,12 +273,12 @@ class CampaignWorker {
                     }
 
                     const hasWork = await this.processQueue();
-                    
+
                     if (hasWork) {
                         this.idleMultiplier = 1; // Reset backoff when work is found
                     } else {
                         // Max 4x multiplier (approx 8-20s sleep max)
-                        this.idleMultiplier = Math.min(4, (this.idleMultiplier || 1) + 1); 
+                        this.idleMultiplier = Math.min(4, (this.idleMultiplier || 1) + 1);
                     }
 
                     this.isProcessing = false;
@@ -375,9 +354,9 @@ class CampaignWorker {
                     .from('campaign_queue')
                     .select('*', { count: 'exact', head: true })
                     .eq('campaign_id', campaign.id);
-                
+
                 if (countErr) throw countErr;
-                
+
                 if (queueCount === 0) {
                     await this.supabase.from('campaigns').update({ status: 'COMPLETED' }).eq('id', campaign.id);
                     continue;
@@ -396,14 +375,14 @@ class CampaignWorker {
 
                     if (holdErr) {
                         console.error(`[Worker] Insufficient balance to hold ₹${estimatedCost} for campaign ${campaign.id}:`, holdErr.message);
-                        
+
                         const errorMsg = `INSUFFICIENT_BALANCE: ₹${estimatedCost} needed to start this campaign. Please top-up.`;
                         await this.supabase.from('campaign_queue')
                             .update({ status: 'FAILED', error: errorMsg })
                             .eq('campaign_id', campaign.id);
-                            
+
                         // Also try to update error on campaigns table if it exists (fails silently if column doesn't exist)
-                        await this.supabase.from('campaigns').update({ status: 'FAILED', error_message: errorMsg }).eq('id', campaign.id).then(({error}) => {
+                        await this.supabase.from('campaigns').update({ status: 'FAILED', error_message: errorMsg }).eq('id', campaign.id).then(({ error }) => {
                             if (error && error.code === 'PGRST204') {
                                 // Column not found, fallback to just status
                                 this.supabase.from('campaigns').update({ status: 'FAILED' }).eq('id', campaign.id).then();
@@ -415,7 +394,7 @@ class CampaignWorker {
 
                 // 4. Update to PROCESSING
                 await this.supabase.from('campaigns').update({ status: 'PROCESSING' }).eq('id', campaign.id);
-                
+
                 if (estimatedCost > 0) {
                     console.log(`[Worker ${this.workerId}] Started campaign ${campaign.id} with upfront hold of ₹${estimatedCost}`);
                 } else {
@@ -445,7 +424,7 @@ class CampaignWorker {
 
         // Process campaigns in parallel — each claims exclusive ownership before working.
         await Promise.all(shuffled.map(campaign => this.processCampaignBatch(campaign)));
-        
+
         return true;
     }
 
@@ -571,12 +550,12 @@ class CampaignWorker {
         let proactivelyHealedMediaId = null;
         if (campaign.media_url && !campaign.location_header) {
             proactivelyHealedMediaId = HEALED_MEDIA_CACHE.get(campaign.id);
-            
+
             if (!proactivelyHealedMediaId) {
                 console.log(`[Proactive-Heal] Starting proactive media prep for campaign ${campaign.id}...`);
                 try {
                     const mType = campaign.media_type?.toLowerCase() || 'video';
-                    
+
                     // 1. Download raw file
                     const dlRes = await axios.get(campaign.media_url.trim(), {
                         responseType: 'arraybuffer',
@@ -584,10 +563,10 @@ class CampaignWorker {
                         maxContentLength: Infinity
                     });
                     const rawBuffer = Buffer.from(dlRes.data);
-                    
+
                     let finalBuffer = rawBuffer;
                     let ext = campaign.media_url.split(/[#?]/)[0].split('.').pop().trim().toLowerCase();
-                    
+
                     let finalMime = 'application/pdf';
                     if (mType === 'image') finalMime = 'image/jpeg';
                     else if (mType === 'video') finalMime = 'video/mp4';
@@ -849,7 +828,7 @@ class CampaignWorker {
 
             if (count === 0) {
                 console.log(`Campaign ${campaign.id} Completed!`);
-                
+
                 // --- Release Unused Reservation Funds ---
                 try {
                     // Get the initial hold amount
@@ -884,7 +863,7 @@ class CampaignWorker {
                 } catch (relErr) {
                     console.error(`[Worker] Failed to release funds for campaign ${campaign.id}:`, relErr.message);
                 }
-                
+
                 await this.supabase.from('campaigns').update({ status: 'COMPLETED' }).eq('id', campaign.id);
             } else {
                 // If count > 0 but we found no candidates, it means they are all in SENDING/RETRYING(future)
@@ -980,11 +959,11 @@ class CampaignWorker {
         try {
             const { data: heldTxs } = await this.supabase.from('wallet_transactions').select('amount').eq('source', 'RESERVATION_HOLD').eq('campaign_id', campaignId);
             const { data: debits } = await this.supabase.from('wallet_transactions').select('amount').eq('source', 'CAMPAIGN_SEND').eq('campaign_id', campaignId);
-            
+
             const totalHeld = heldTxs ? heldTxs.reduce((acc, tx) => acc + Number(tx.amount), 0) : 0;
             const totalDebited = debits ? debits.reduce((acc, tx) => acc + Number(tx.amount), 0) : 0;
             const releaseAmount = totalHeld - totalDebited;
-            
+
             if (releaseAmount > 0) {
                 console.log(`[Worker] Released unused reservation of ₹${releaseAmount} for campaign ${campaignId}`);
             }
@@ -1007,7 +986,7 @@ class CampaignWorker {
             const resolveVariableValue = (key, mapping, contacts, phone) => {
                 const field = mapping[key];
                 if (!field) return '';
-                
+
                 // Helper to resolve nested paths (e.g. custom_data.Age)
                 const resolvePath = (obj, path) => {
                     if (!obj || !path) return undefined;
@@ -1310,9 +1289,9 @@ class CampaignWorker {
 
             // 🚀 MARKETING MESSAGES API (MM LITE) OPTIMIZATION
             // Use specialized high-performance endpoint for Marketing templates
-            const isMarketingTemplate = templateDef?.category === 'MARKETING' || 
-                                      campaign.template_name?.toLowerCase().includes('mkt');
-            
+            const isMarketingTemplate = templateDef?.category === 'MARKETING' ||
+                campaign.template_name?.toLowerCase().includes('mkt');
+
             const endpoint = isMarketingTemplate ? 'marketing_messages' : 'messages';
             const url = `${GRAPH_API_URL}/${config.phone_number_id}/${endpoint}`;
 
@@ -1339,7 +1318,7 @@ class CampaignWorker {
                 const errData = postErr.response?.data?.error;
                 if (isMarketingTemplate && (errData?.code === 100 || errData?.message?.includes('Unknown path'))) {
                     console.warn(`[Worker] Fallback: /marketing_messages not ready for ${config.phone_number_id}. Using standard /messages.`);
-                    
+
                     const fallbackPayload = { ...payload };
                     delete fallbackPayload.solution_id;
 
@@ -1619,7 +1598,7 @@ class CampaignWorker {
             // we catch it here, transcode it to flawless H.264/AAC, and RESEND it!
             if (errorCode === 131053 || errorCode === 131052) {
                 console.warn(`[Auto-Heal] Detected media upload error 131053 for ${item.phone_number}. Attempting recovery...`);
-                
+
                 if (campaign.media_url) {
                     try {
                         const mType = campaign.media_type?.toLowerCase() || 'video';
@@ -1627,7 +1606,7 @@ class CampaignWorker {
 
                         if (!mediaId) {
                             console.log(`[Auto-Heal] No cached Media ID for campaign ${campaign.id}. Generating fresh one...`);
-                            
+
                             // 1. Download raw file
                             const dlResponse = await axios.get(campaign.media_url.trim(), {
                                 responseType: 'arraybuffer',
@@ -1663,7 +1642,7 @@ class CampaignWorker {
                                 finalMime,
                                 finalFilename
                             );
-                            
+
                             // 4. Cache for other items in this batch/campaign
                             HEALED_MEDIA_CACHE.set(campaign.id, mediaId);
                             console.log(`[Auto-Heal] Cached Media ID ${mediaId} for Campaign ${campaign.id}`);
@@ -1693,16 +1672,16 @@ class CampaignWorker {
 
                         // 6. Resend
                         console.log(`[Auto-Heal] Resending healed payload to ${item.phone_number} with exponential backoff...`);
-                        
+
                         let retryResponse = null;
                         let maxRetries = 3;
                         let delayMs = 3000;
-                        
+
                         for (let i = 0; i < maxRetries; i++) {
                             try {
                                 // Wait before attempting to prevent (#131056) rate limit hit
                                 await new Promise(resolve => setTimeout(resolve, delayMs));
-                                
+
                                 retryResponse = await axios.post(url, healedPayload, {
                                     headers: { 'Authorization': `Bearer ${config.meta_access_token}` },
                                     httpsAgent: httpsAgent
@@ -1711,7 +1690,7 @@ class CampaignWorker {
                             } catch (retryErr) {
                                 const errData = retryErr.response?.data?.error || {};
                                 const isRateLimit = errData.code === 131056 || (retryErr.message && retryErr.message.includes('131056'));
-                                
+
                                 if (isRateLimit && i < maxRetries - 1) {
                                     delayMs *= 2; // Exponential backoff (3s, 6s, 12s)
                                     console.warn(`[Auto-Heal] Rate limit hit on retry ${i + 1}. Backing off for ${delayMs}ms...`);

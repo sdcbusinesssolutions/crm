@@ -158,8 +158,8 @@ exports.loginAdmin = async (req, res) => {
             return res.status(401).json({ message: 'User profile not found.' });
         }
 
-        // C. Validate Role (Must be 'admin' or 'super_admin')
-        if (profile.role !== 'admin' && profile.role !== 'super_admin') {
+        // C. Validate Role (Must be 'admin')
+        if (profile.role !== 'admin') {
             return res.status(403).json({ message: 'Access Denied: You are not an Administrator.' });
         }
 
@@ -170,7 +170,7 @@ exports.loginAdmin = async (req, res) => {
         const normCurrent = normalize(currentDomain);
 
         // Use the preserved isLocalRequest check
-        if (normAssigned !== normCurrent && !isLocalRequest && profile.role !== 'super_admin') {
+        if (normAssigned !== normCurrent && !isLocalRequest) {
             console.warn(`[Admin Login Blocked] Domain Mismatch. Assigned: ${normAssigned}, Current: ${normCurrent}, IsLocal: ${isLocalRequest}`);
             return res.status(403).json({ message: 'Invalid Domain: You cannot access this dashboard.' });
         }

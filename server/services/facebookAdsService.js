@@ -41,9 +41,7 @@ class FacebookAdsService {
         }
     }
 
-    /**
-     * Fetch Ad Insights
-     */
+
     static async fetchInsights(accessToken, entityId, level = 'campaign', timeIncrement = null, datePreset = 'last_30d', breakdowns = null, since = null, until = null, fields = null) {
         try {
             const apiVersion = 'v20.0';
@@ -631,13 +629,11 @@ class FacebookAdsService {
                 await processLocations(adSetNode.locationsExclude, 'excluded_custom_locations'); // CSV Exclusions
                 await processMetaLocations(adSetNode.metaLocations); // Visual Builder proper location parsing
 
-                // Process Visual Builder targetCountries (e.g. 'IN|US' but may contain map pins like 'Pune, India')
                 if (adSetNode.targetCountries) {
                     if (!final_geo_locations.countries) final_geo_locations.countries = [];
                     const countries = adSetNode.targetCountries.split('|').filter(Boolean);
                     countries.forEach(c => {
                         const code = c.trim().toUpperCase();
-                        // Only add valid 2-letter country codes. Map pins (city names) are already in custom_locations!
                         if (code.length === 2 && /^[A-Z]{2}$/.test(code)) {
                             if (!final_geo_locations.countries.includes(code)) final_geo_locations.countries.push(code);
                         }
@@ -717,7 +713,7 @@ class FacebookAdsService {
                         ...(flexible_spec.length > 0 && { flexible_spec }),
                         ...(Object.keys(exclusions).length > 0 && { exclusions }),
                         ...(!baseConfig.advantagePlacements && baseConfig.publisherPlatforms ? { publisher_platforms: baseConfig.publisherPlatforms } : {
-                            publisher_platforms: ['facebook', 'instagram', 'messenger', 'audience_network'],
+                            publisher_platforms: ['facebook', 'instagram', 'messenger'],
                             facebook_positions: ['feed', 'story', 'marketplace', 'search']
                         }),
                         targeting_automation: { advantage_audience: currentAdvantageAudience === 1 ? 1 : 0 }

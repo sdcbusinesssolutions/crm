@@ -267,7 +267,7 @@ const adminSubscriptionRoutes = require('./routes/admin/subscriptionRoutes');
 const adminSettingsRoutes = require('./routes/admin/settingsRoutes');
 const adminFeatureLimitsRoutes = require('./routes/admin/featureLimitsRoutes');
 const adminCustomMenus = require('./routes/admin/adminCustomMenus');
-const { verifyAdminToken, verifySuperAdmin } = require('./middleware/admin/authMiddleware');
+const { verifyAdminToken } = require('./middleware/admin/authMiddleware');
 
 // Public Routes
 const authRoutes = require('./routes/auth');
@@ -317,7 +317,7 @@ router.use('/upload', requireAuth, uploadRoutes);
 router.use('/admin/auth', adminAuthRoutes); // Auth has its own middleware or none for login
 router.use('/admin/dashboard', adminDashboardRoutes);
 
-router.use('/admin/pricing', verifySuperAdmin, pricingAdminRoutes);
+router.use('/admin/pricing', verifyAdminToken, pricingAdminRoutes);
 app.use('/api/public-settings', require('./routes/publicSettings'));
 router.use('/admin/users', adminUserRoutes);
 router.use('/admin/plans', adminPlanRoutes);
